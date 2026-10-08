@@ -3,10 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { razorpayClient } from '@/lib/payments';
 import { AGREEMENT_VERSIONS } from '@/lib/legal/agreement-copy';
+import { isSameOriginRequest } from '@/lib/auth/otp';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
     const db = await createClient();
     if (!db) return NextResponse.json({ error: 'Database is not configured.' }, { status: 503 });
@@ -50,6 +52,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID, email: user.email, planName: plan.name });
   } catch (error) {
     console.error('Could not create Razorpay order:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not create payment order.' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not create payment order. Please try again.' }, { status: 500 });
   }
 }

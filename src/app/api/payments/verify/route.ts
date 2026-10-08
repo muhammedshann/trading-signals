@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { razorpayClient } from '@/lib/payments';
 import { sendReceiptOnce } from '@/lib/payments/receipt-email';
+import { isSameOriginRequest } from '@/lib/auth/otp';
 
 export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
+  if (!isSameOriginRequest(req)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
     const db = await createClient();
     if (!db) return NextResponse.json({ error: 'Database is not configured.' }, { status: 503 });
@@ -25,12 +27,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Payment signature could not be verified.' }, { status: 400 });
     }
     const admin = createAdminClient();
-    const { data: payment } = await admin.from('payments').select('id,user_id,plan_id,status,agreement_id').eq('razorpay_order_id', razorpay_order_id).single();
+    const { data: payment, error: paymentError } = await admin.from('payments').select('id,user_id,plan_id,status,agreement_id,amount_inr').eq('razorpay_order_id', razorpay_order_id).single();
+    if (paymentError) throw paymentError;
     if (!payment || payment.user_id !== user.id) return NextResponse.json({ error: 'Payment order was not found.' }, { status: 404 });
     const paymentDetails = await razorpayClient().payments.fetch(razorpay_payment_id);
     if (paymentDetails.order_id !== razorpay_order_id) return NextResponse.json({ error: 'Payment does not match this order.' }, { status: 400 });
+    if (paymentDetails.amount !== payment.amount_inr * 100 || paymentDetails.currency !== 'INR') return NextResponse.json({ error: 'Payment amount does not match this order.' }, { status: 400 });
     if (paymentDetails.status !== 'captured') return NextResponse.json({ error: 'Payment is awaiting capture. Your dashboard will update once Razorpay confirms it.' }, { status: 409 });
-    const { data: plan } = await admin.from('plans').select('name,price_inr,duration_days').eq('id', payment.plan_id).single();
+    const { data: plan, error: planError } = await admin.from('plans').select('name,price_inr,duration_days').eq('id', payment.plan_id).single();
+    if (planError) throw planError;
     if (!plan) throw new Error('Plan not found.');
     const paidAt = paymentDetails.created_at ? new Date(paymentDetails.created_at * 1000).toISOString() : new Date().toISOString();
     const subscription = await activate(admin, payment, razorpay_payment_id, plan.duration_days, paidAt);
@@ -77,7 +82,8 @@ export async function POST(req: Request) {
       receiptEmailStatus,
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'Verification failed.' }, { status: 500 });
+    console.error('Razorpay payment verification failed:', e);
+    return NextResponse.json({ error: 'Payment verification could not be completed. Please contact support if you were charged.' }, { status: 500 });
   }
 }
 

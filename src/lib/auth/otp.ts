@@ -34,7 +34,11 @@ export function getLocalOrPublicOrigin(request: Request) {
   const configured = process.env.NEXT_PUBLIC_SITE_URL;
   if (configured) {
     try {
-      return new URL(configured).origin;
+      const parsed = new URL(configured);
+      const localHost = ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+      if (parsed.protocol === 'https:' || (process.env.NODE_ENV !== 'production' && parsed.protocol === 'http:' && localHost)) {
+        return parsed.origin;
+      }
     } catch {
       // Fall back to the request origin below.
     }

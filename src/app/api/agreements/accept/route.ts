@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AGREEMENT_VERSIONS, createAgreementHash } from '@/lib/legal/agreement';
+import { isSameOriginRequest } from '@/lib/auth/otp';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
     const db = await createClient();
     if (!db) return NextResponse.json({ error: 'Database is not configured.' }, { status: 503 });

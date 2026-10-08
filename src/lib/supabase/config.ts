@@ -6,6 +6,7 @@ export function getSupabaseConfig() {
   try {
     const parsed = new URL(url);
     if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
+    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'https:') return null;
     return { url: parsed.origin, key };
   } catch {
     return null;

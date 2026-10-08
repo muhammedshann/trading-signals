@@ -3,12 +3,14 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { telegramCall } from '@/lib/telegram/bot-api';
+import { isSameOriginRequest } from '@/lib/auth/otp';
 
 export const runtime = 'nodejs';
 
 type InviteResult = { invite_link: string };
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
     const db = await createClient();
     if (!db) return NextResponse.json({ error: 'Database is not configured.' }, { status: 503 });
@@ -55,6 +57,6 @@ export async function POST() {
     return NextResponse.json({ inviteUrl: invite.invite_link, expiresInSeconds: 900 });
   } catch (error) {
     console.error('Telegram invite creation failed:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Could not create invite.' }, { status: 500 });
+    return NextResponse.json({ error: 'Could not create a Telegram invite. Please try again.' }, { status: 500 });
   }
 }

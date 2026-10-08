@@ -13,7 +13,10 @@ const nextConfig: NextConfig = {
     if (process.env.NODE_ENV === 'production') {
       securityHeaders.push({ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' });
     }
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'no-store, max-age=0' }] },
+    ];
   },
 };
 

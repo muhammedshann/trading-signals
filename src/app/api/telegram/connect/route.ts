@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { telegramCall } from '@/lib/telegram/bot-api';
+import { isSameOriginRequest } from '@/lib/auth/otp';
 
 export const runtime = 'nodejs';
 type BotInfo = { username: string };
@@ -30,7 +31,8 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
     const auth = await currentUser();
     if (auth.response) return auth.response;

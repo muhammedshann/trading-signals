@@ -87,6 +87,16 @@ The plans checkout requires a single unchecked risk agreement before the existin
 
 Replace the sample support contact language and verify legal entity, jurisdiction, tax, renewal and consumer-rights wording with qualified counsel. Add a real support email to the website. Confirm Razorpay account approval and local regulatory requirements for the specific content/service offered. This starter does not implement recurring Razorpay subscriptions; its monthly and annual plans are one-time period purchases and members renew manually.
 
+### Production deployment checklist
+
+- Connect the project to Vercel and add every value from `.env.example` in Vercel Project Settings → Environment Variables. Keep `SUPABASE_SERVICE_ROLE_KEY`, Gmail OAuth credentials, Razorpay secrets, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `CRON_SECRET` server-only.
+- Set `NEXT_PUBLIC_SITE_URL` to the exact production HTTPS origin. In Supabase Auth, configure the same production site URL and allowlisted redirect URLs.
+- Use Razorpay live credentials only after testing. Create the Razorpay webhook at `https://YOUR_DOMAIN/api/payments/webhook`, subscribe to the documented capture/order/failure events, and set the matching `RAZORPAY_WEBHOOK_SECRET` in Vercel.
+- Apply every Supabase migration through `202610080007_telegram_account_linking.sql` before enabling live purchases or Telegram access.
+- Create a private Telegram group, make the bot an administrator with invite/restrict permissions, set the webhook to the production HTTPS endpoint, and test the connect → request → approve → expiry flow with a test subscription.
+- Deploy to Production and check Vercel function logs, Cron Jobs, Supabase Auth URLs, and Razorpay webhook delivery before sharing the site.
+- Never commit `.env.local`; `.gitignore` excludes it. If a secret was ever committed or shared, rotate it at its provider and update Vercel.
+
 ## Free-tier notes
 
 Vercel deployment uses standard Next.js serverless routes. Supabase is the only database/auth provider. No Redis, background worker, file storage, or paid observability service is required. Configure webhook retries in Razorpay and monitor the Vercel function logs. The schema and app are ready to connect, but database credentials, Razorpay account setup, Telegram admin setup, and legal business details must be supplied by the operator.
