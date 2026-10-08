@@ -1,0 +1,1 @@
+'use client';import {createClient} from '@/lib/supabase/browser';export function SignOut(){return <button className="button button-outline" onClick={async()=>{const db=createClient();if(db)await db.auth.signOut();location.href='/';}}>Sign out</button>}
