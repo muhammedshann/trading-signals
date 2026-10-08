@@ -29,9 +29,20 @@ async function notifyUser(chatId: number | string, text: string) {
 
 async function handleConnectMessage(admin: ReturnType<typeof createAdminClient>, message: TextMessage) {
   const text = message.text ?? '';
-  const match = text.match(/^\/start\s+([A-Za-z0-9_-]{20,})/);
-  if (!message.from || message.chat.type !== 'private' || !match) return;
-  const codeHash = hash(match[1]);
+  if (!message.from || message.chat.type !== 'private') return;
+  const command = text.match(/^\/start(?:@\w+)?(?:\s+(.+))?\s*$/i);
+  if (!command) return;
+  const payload = command[1]?.trim();
+  if (!payload) {
+    await notifyUser(message.chat.id, 'Hi! To connect Telegram, sign in to the membership website, choose “Connect my Telegram,” then open that one-time link here. Starting this bot by itself does not grant group access.');
+    return;
+  }
+  if (!/^[A-Za-z0-9_-]{20,128}$/.test(payload)) {
+    await notifyUser(message.chat.id, 'That Telegram connection link is not valid. Sign in to the membership website and create a fresh link.');
+    return;
+  }
+
+  const codeHash = hash(payload);
   const now = new Date().toISOString();
   const telegramUserId = String(message.from.id);
   const { data: code, error: codeError } = await admin.from('telegram_link_codes')
@@ -149,11 +160,13 @@ async function handleGroupJoin(admin: ReturnType<typeof createAdminClient>, chan
 export async function POST(request: Request) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret || !hasValidSecret(request.headers.get('x-telegram-bot-api-secret-token'), secret)) {
+    console.error('Telegram webhook rejected: missing or mismatched TELEGRAM_WEBHOOK_SECRET.');
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
 
+  let update: Update | undefined;
   try {
-    const update = await request.json() as Update;
+    update = await request.json() as Update;
     const admin = createAdminClient();
     if (update.message) await handleConnectMessage(admin, update.message);
     if (update.chat_join_request) await handleJoinRequest(admin, update.chat_join_request);
@@ -161,6 +174,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Telegram webhook handling failed:', error);
+    if (update?.message?.chat.type === 'private') {
+      try {
+        await notifyUser(update.message.chat.id, 'I could not verify this Telegram connection right now. Return to the signed-in membership website, create a fresh Telegram link, and try again.');
+        // The user has been told how to retry; stop Telegram from replaying this message update.
+        return NextResponse.json({ ok: true });
+      } catch (replyError) {
+        console.error('Could not send Telegram connection error reply:', replyError);
+      }
+    }
     return NextResponse.json({ error: 'Webhook handling failed.' }, { status: 500 });
   }
 }

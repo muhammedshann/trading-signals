@@ -106,7 +106,7 @@ export function TelegramAccess() {
           {busy ? 'Preparing…' : 'Connect my Telegram'} <ArrowUpRight size={15}/>
         </button>
         {connectUrl && <div className="form-success">
-          <p>Open the bot and press <strong>Start</strong>. Return here to review the Telegram identity before confirming it.</p>
+          <p>Open the bot and press <strong>Start</strong>. The bot will reply with the account it received. Return here to review that identity and confirm it; only then can you request group access.</p>
           <a className="button button-dark" href={connectUrl} target="_blank" rel="noreferrer">Open Telegram bot <ArrowUpRight size={15}/></a>
           <button className="button button-light" onClick={refreshStatus} disabled={busy}><RefreshCw size={15}/> I pressed Start — check identity</button>
         </div>}
