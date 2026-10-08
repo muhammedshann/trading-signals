@@ -21,6 +21,7 @@ type PaymentReceipt = {
   receiptEmailStatus: 'sent' | 'sending' | 'pending' | 'failed';
   inviteUrl: string | null;
   connectUrl: string | null;
+  pendingTelegram: { id: string; telegramUserId: string; username: string | null; displayName: string | null } | null;
   inviteError: string;
   inviteLoading: boolean;
 };
@@ -65,7 +66,7 @@ export function Checkout({ planId, label = 'Choose this plan' }: { planId: strin
             });
             const result = await verify.json();
             if (!verify.ok) throw new Error(result.error || 'Payment verification failed.');
-            setReceipt({ ...result, inviteUrl: null, connectUrl: null, inviteError: '', inviteLoading: true });
+            setReceipt({ ...result, inviteUrl: null, connectUrl: null, pendingTelegram: null, inviteError: '', inviteLoading: true });
             setBusy(false);
             void (async () => {
               try {
@@ -117,13 +118,38 @@ export function Checkout({ planId, label = 'Choose this plan' }: { planId: strin
       const statusResponse = await fetch('/api/telegram/connect');
       const status = await statusResponse.json();
       if (!statusResponse.ok) throw new Error(status.error || 'Could not check Telegram connection.');
-      if (!status.connected) throw new Error('Telegram is not connected yet. Open the bot and press Start, then try again.');
+      if (!status.connected) {
+        if (status.pending) {
+          setReceipt(current => current ? { ...current, pendingTelegram: status.pending, inviteError: '', inviteLoading: false } : current);
+          return;
+        }
+        throw new Error('Telegram has not responded yet. Open the bot and press Start, then check again.');
+      }
       const inviteResponse = await fetch('/api/telegram/invite', { method: 'POST' });
       const invite = await inviteResponse.json();
       if (!inviteResponse.ok) throw new Error(invite.error || 'Could not create your invite.');
-      setReceipt(current => current ? { ...current, inviteUrl: invite.inviteUrl, inviteError: '', inviteLoading: false } : current);
+      setReceipt(current => current ? { ...current, pendingTelegram: null, inviteUrl: invite.inviteUrl, inviteError: '', inviteLoading: false } : current);
     } catch (cause) {
       setReceipt(current => current ? { ...current, inviteError: cause instanceof Error ? cause.message : 'Could not finish Telegram setup.', inviteLoading: false } : current);
+    }
+  }
+
+  async function confirmTelegramConnection() {
+    if (!receipt?.pendingTelegram) return;
+    setReceipt(current => current ? { ...current, inviteLoading: true, inviteError: '' } : current);
+    try {
+      const confirmResponse = await fetch('/api/telegram/connect/confirm', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codeId: receipt.pendingTelegram.id }),
+      });
+      const confirmed = await confirmResponse.json();
+      if (!confirmResponse.ok) throw new Error(confirmed.error || 'Could not confirm this Telegram account.');
+      const inviteResponse = await fetch('/api/telegram/invite', { method: 'POST' });
+      const invite = await inviteResponse.json();
+      if (!inviteResponse.ok) throw new Error(invite.error || 'Could not create your invite.');
+      setReceipt(current => current ? { ...current, pendingTelegram: null, inviteUrl: invite.inviteUrl, inviteError: '', inviteLoading: false } : current);
+    } catch (cause) {
+      setReceipt(current => current ? { ...current, inviteError: cause instanceof Error ? cause.message : 'Could not confirm this Telegram account.', inviteLoading: false } : current);
     }
   }
 
@@ -163,7 +189,7 @@ export function Checkout({ planId, label = 'Choose this plan' }: { planId: strin
         {receipt.agreementVersions && <div className="payment-policy-versions"><b>Accepted policy versions</b><span>Terms {receipt.agreementVersions.terms} · Risk {receipt.agreementVersions.riskDisclosure} · Privacy {receipt.agreementVersions.privacy} · Refund {receipt.agreementVersions.refund}</span></div>}
         <div className="payment-success-telegram">
           <h3>Your private Telegram access</h3>
-          {receipt.inviteUrl ? <><p>Open the request link. The bot approves it for your connected Telegram account.</p><a className="button button-dark" href={receipt.inviteUrl} target="_blank" rel="noreferrer">Request group access</a></> : receipt.connectUrl ? <><p>First connect the Telegram account you’ll use to join. Open the bot, press <b>Start</b>, then return here.</p><a className="button button-dark" href={receipt.connectUrl} target="_blank" rel="noreferrer">Open Telegram bot</a><button className="button button-outline" type="button" disabled={receipt.inviteLoading} onClick={finishTelegramConnection}>{receipt.inviteLoading ? 'Checking connection…' : 'I pressed Start — continue'}</button></> : receipt.inviteLoading ? <p>Preparing your Telegram access…</p> : <p className="form-error">{receipt.inviteError || 'Telegram access could not be created. You can retry from your dashboard.'}</p>}
+          {receipt.inviteUrl ? <><p>Open the request link. The bot approves it for your confirmed Telegram account.</p><a className="button button-dark" href={receipt.inviteUrl} target="_blank" rel="noreferrer">Request group access</a></> : receipt.connectUrl ? <><p>First connect the Telegram account you’ll use to join. Open the bot, press <b>Start</b>, then return here to review the identity.</p><a className="button button-dark" href={receipt.connectUrl} target="_blank" rel="noreferrer">Open Telegram bot</a>{receipt.pendingTelegram ? <><p className="form-success">Telegram responded as <b>{receipt.pendingTelegram.displayName || 'Telegram user'}{receipt.pendingTelegram.username ? ` (@${receipt.pendingTelegram.username})` : ''}</b> · ID ending <b>{receipt.pendingTelegram.telegramUserId.slice(-4)}</b>. No group access has been granted yet.</p><button className="button button-outline" type="button" disabled={receipt.inviteLoading} onClick={confirmTelegramConnection}>{receipt.inviteLoading ? 'Confirming…' : 'Confirm this is my Telegram account'}</button></> : <button className="button button-outline" type="button" disabled={receipt.inviteLoading} onClick={finishTelegramConnection}>{receipt.inviteLoading ? 'Checking connection…' : 'I pressed Start — check identity'}</button>}</> : receipt.inviteLoading ? <p>Preparing your Telegram access…</p> : <p className="form-error">{receipt.inviteError || 'Telegram access could not be created. You can retry from your dashboard.'}</p>}
           {receipt.connectUrl && receipt.inviteError && <p className="form-error">{receipt.inviteError}</p>}
         </div>
         <div className="payment-success-policies"><span>Policies:</span> <Link href="/terms">Terms</Link><Link href="/risk-disclaimer">Risk disclosure</Link><Link href="/privacy">Privacy</Link><Link href="/refund-policy">Refunds</Link></div>

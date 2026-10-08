@@ -21,10 +21,30 @@ export async function GET() {
     const auth = await currentUser();
     if (auth.response) return auth.response;
     const admin = createAdminClient();
-    const { data: member, error } = await admin.from('telegram_members').select('verified_at')
+    const { data: member, error } = await admin.from('telegram_members').select('verified_at,username,display_name,telegram_user_id')
       .eq('user_id', auth.user.id).not('verified_at', 'is', null).maybeSingle();
     if (error) throw error;
-    return NextResponse.json({ connected: Boolean(member) });
+    if (member) return NextResponse.json({ connected: true, identity: {
+      telegramUserId: member.telegram_user_id,
+      username: member.username,
+      displayName: member.display_name,
+    } });
+
+    const { data: pending, error: pendingError } = await admin.from('telegram_link_codes')
+      .select('id,claimed_telegram_user_id,claimed_username,claimed_display_name,expires_at')
+      .eq('user_id', auth.user.id).not('claimed_at', 'is', null).is('used_at', null)
+      .gt('expires_at', new Date().toISOString()).order('claimed_at', { ascending: false }).limit(1).maybeSingle();
+    if (pendingError) throw pendingError;
+    return NextResponse.json({
+      connected: false,
+      pending: pending ? {
+        id: pending.id,
+        telegramUserId: pending.claimed_telegram_user_id,
+        username: pending.claimed_username,
+        displayName: pending.claimed_display_name,
+        expiresAt: pending.expires_at,
+      } : null,
+    });
   } catch (error) {
     console.error('Telegram connection status failed:', error);
     return NextResponse.json({ error: 'Could not check Telegram connection.' }, { status: 500 });
@@ -47,6 +67,11 @@ export async function POST(request: Request) {
       .eq('user_id', auth.user.id).not('verified_at', 'is', null).maybeSingle();
     if (memberError) throw memberError;
     if (member) return NextResponse.json({ connected: true });
+
+    // Reissuing a link invalidates older links, including a link claimed by the wrong Telegram account.
+    const { error: clearError } = await admin.from('telegram_link_codes').delete()
+      .eq('user_id', auth.user.id).is('used_at', null);
+    if (clearError) throw clearError;
 
     const code = randomBytes(24).toString('base64url');
     const codeHash = createHash('sha256').update(code).digest('hex');

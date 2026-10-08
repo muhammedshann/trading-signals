@@ -5,7 +5,7 @@ import { kickTelegramMember, telegramCall } from '@/lib/telegram/bot-api';
 
 export const runtime = 'nodejs';
 
-type TelegramUser = { id: number; username?: string };
+type TelegramUser = { id: number; username?: string; first_name?: string; last_name?: string };
 type Member = { status: string; is_member?: boolean; user: TelegramUser };
 type ChatMemberUpdate = { chat: { id: number | string }; date: number; invite_link?: { invite_link: string }; old_chat_member: Member; new_chat_member: Member };
 type JoinRequest = { chat: { id: number | string }; from: TelegramUser; date: number; invite_link?: { invite_link: string } };
@@ -35,7 +35,7 @@ async function handleConnectMessage(admin: ReturnType<typeof createAdminClient>,
   const now = new Date().toISOString();
   const telegramUserId = String(message.from.id);
   const { data: code, error: codeError } = await admin.from('telegram_link_codes')
-    .select('id,user_id,expires_at,used_at').eq('code_hash', codeHash).maybeSingle();
+    .select('id,user_id,expires_at,used_at,claimed_at').eq('code_hash', codeHash).maybeSingle();
   if (codeError) throw codeError;
   if (!code || code.used_at || code.expires_at <= now) {
     await notifyUser(message.chat.id, 'That connection link has expired or was already used. Sign in to your membership page and create a new one.');
@@ -47,24 +47,30 @@ async function handleConnectMessage(admin: ReturnType<typeof createAdminClient>,
     .order('expires_at', { ascending: false }).limit(1).maybeSingle();
   if (subscriptionError) throw subscriptionError;
   const { data: existing, error: existingError } = await admin.from('telegram_members')
-    .select('user_id').eq('telegram_user_id', telegramUserId).maybeSingle();
+    .select('user_id,verified_at').eq('telegram_user_id', telegramUserId).maybeSingle();
   if (existingError) throw existingError;
-  if (!subscription || (existing && existing.user_id !== code.user_id)) {
+  const { data: existingForUser, error: userMappingError } = await admin.from('telegram_members')
+    .select('telegram_user_id').eq('user_id', code.user_id).not('verified_at', 'is', null).maybeSingle();
+  if (userMappingError) throw userMappingError;
+  if (!subscription || code.claimed_at || (existing && existing.user_id !== code.user_id) || existingForUser) {
     await notifyUser(message.chat.id, 'This Telegram account could not be connected. Make sure you are using the account you want to join the group with, and that your membership is active.');
     return;
   }
 
-  const { error: upsertError } = await admin.from('telegram_members').upsert({
-    telegram_user_id: telegramUserId,
-    user_id: code.user_id,
-    username: message.from.username ?? null,
-    verified_at: now,
-    kicked_at: existing ? undefined : null,
-  }, { onConflict: 'telegram_user_id' });
-  if (upsertError) throw upsertError;
-  const { error: usedError } = await admin.from('telegram_link_codes').update({ used_at: now }).eq('id', code.id).is('used_at', null);
-  if (usedError) throw usedError;
-  await notifyUser(message.chat.id, 'Telegram connected to your active membership. Return to the membership website and request your private group invite.');
+  const displayName = [message.from.first_name, message.from.last_name].filter(Boolean).join(' ').slice(0, 120) || null;
+  const { data: claimed, error: claimError } = await admin.from('telegram_link_codes').update({
+    claimed_at: now,
+    claimed_telegram_user_id: telegramUserId,
+    claimed_username: message.from.username ?? null,
+    claimed_display_name: displayName,
+  }).eq('id', code.id).is('used_at', null).is('claimed_at', null).gt('expires_at', now).select('id').maybeSingle();
+  if (claimError) throw claimError;
+  if (!claimed) {
+    await notifyUser(message.chat.id, 'This connection link has already been used or expired. Create a new one from your membership page.');
+    return;
+  }
+  const accountLabel = `${displayName ?? 'Telegram user'}${message.from.username ? ` (@${message.from.username})` : ''}`;
+  await notifyUser(message.chat.id, `Telegram account detected: ${accountLabel} (ID ending ${telegramUserId.slice(-4)}). No group access has been granted. Return to the signed-in membership website and confirm this is your account.`);
 }
 
 async function handleJoinRequest(admin: ReturnType<typeof createAdminClient>, request: JoinRequest) {

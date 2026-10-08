@@ -19,6 +19,7 @@ An MVP Next.js membership site for a paid trading research community. It uses Ne
 - Apply subsequent schema migrations in order as well, including `202610080003_email_otp.sql`, `202610080004_agreement_acceptances.sql`, and `202610080005_receipt_email_status.sql`.
 - Apply `202610080006_telegram_access.sql` after the earlier migrations to enable tracked Telegram invites and member records.
 - Apply `202610080007_telegram_account_linking.sql` after migration 006 to enable one-time Telegram account linking.
+- Apply `202610080008_telegram_link_confirmation.sql` after migration 007 to require signed-in website confirmation of the Telegram identity returned by the bot.
 - Add the Supabase URL and anon key to the app. Add the service role key only as a server-side environment variable; never expose it with a `NEXT_PUBLIC_` prefix.
 - In local test mode, set a Razorpay test Key ID (`rzp_test_…`) and Key Secret. The synchronous server verification checks the payment signature, order ownership, Razorpay payment record and captured status, so a webhook secret is not required for local checkout testing. For production, configure the webhook URL as `https://YOUR_DOMAIN/api/payments/webhook`, subscribe to `payment.captured`, `order.paid` and `payment.failed`, and set `RAZORPAY_WEBHOOK_SECRET`.
 - Configure email OTP below, then run `npm install`, `npm run dev`; production build: `npm run build`.
@@ -45,7 +46,7 @@ To make an administrator, set the Supabase Auth user's `app_metadata` to `{ "rol
 
 ## Telegram lifecycle
 
-The app never publishes a permanent group URL. A paid member connects a Telegram identity through a one-time `/start` code. The bot records that identity, then the website creates a short-lived join-request link. The webhook approves requests only when the Telegram account is linked to the paying website user and the subscription is active. Expired or unknown joins are declined or removed. The daily `/api/telegram/expire` job removes linked members without a current active subscription. On renewal, a fresh invite allows the same linked account to rejoin.
+The app never publishes a permanent group URL. A paid member opens a one-time `/start` code from the signed-in website. The bot reads Telegram's stable numeric user ID and profile name from Telegram's webhook, but keeps the identity pending. The member must review that identity and confirm it on the signed-in website before it is linked; starting the bot alone grants no group access. The website then creates a short-lived join-request link. The webhook approves requests only when the confirmed Telegram account matches the paying website user, the invite is unused, and the subscription is active. Expired or unknown joins are declined or removed. The daily `/api/telegram/expire` job removes linked members without a current active subscription. On renewal, a fresh invite allows the same linked account to rejoin.
 
 ### Telegram setup guide
 
@@ -63,7 +64,7 @@ The app never publishes a permanent group URL. A paid member connects a Telegram
    ```
 
    Generate the two secrets in Terminal with `openssl rand -hex 32`. Keep them out of browser code and source control. Restart local Next.js after changing `.env.local`.
-6. **Apply the database migrations.** In Supabase Dashboard → SQL Editor, run the complete contents of `supabase/migrations/202610080006_telegram_access.sql`, then `supabase/migrations/202610080007_telegram_account_linking.sql`. These create private service-role-only invite, member, and one-time connection-code tables. Never run just the filenames as SQL.
+6. **Apply the database migrations.** In Supabase Dashboard → SQL Editor, run the complete contents of `supabase/migrations/202610080006_telegram_access.sql`, then `supabase/migrations/202610080007_telegram_account_linking.sql`, then `supabase/migrations/202610080008_telegram_link_confirmation.sql`. These create private service-role-only invite, member, and one-time connection-code tables, and fields for pending identity confirmation. Never run just the filenames as SQL.
 7. **Deploy to Vercel.** Deploy the site with those environment variables. Telegram webhooks need a publicly reachable HTTPS deployment. The new `vercel.json` registers `/api/telegram/expire` at `00:00 UTC` daily. Vercel Hobby runs a cron once per day and may start it within roughly 59 minutes of its scheduled time, so removal can happen up to about a day after the subscription's expiry.
 8. **Register the webhook.** After deployment, run the following in a terminal. Replace the domain and use the same token/secret as Vercel; do not share the completed command because it contains credentials:
 
@@ -92,7 +93,7 @@ Replace the sample support contact language and verify legal entity, jurisdictio
 - Connect the project to Vercel and add every value from `.env.example` in Vercel Project Settings → Environment Variables. Keep `SUPABASE_SERVICE_ROLE_KEY`, Gmail OAuth credentials, Razorpay secrets, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `CRON_SECRET` server-only.
 - Set `NEXT_PUBLIC_SITE_URL` to the exact production HTTPS origin. In Supabase Auth, configure the same production site URL and allowlisted redirect URLs.
 - Use Razorpay live credentials only after testing. Create the Razorpay webhook at `https://YOUR_DOMAIN/api/payments/webhook`, subscribe to the documented capture/order/failure events, and set the matching `RAZORPAY_WEBHOOK_SECRET` in Vercel.
-- Apply every Supabase migration through `202610080007_telegram_account_linking.sql` before enabling live purchases or Telegram access.
+- Apply every Supabase migration through `202610080008_telegram_link_confirmation.sql` before enabling live purchases or Telegram access.
 - Create a private Telegram group, make the bot an administrator with invite/restrict permissions, set the webhook to the production HTTPS endpoint, and test the connect → request → approve → expiry flow with a test subscription.
 - Deploy to Production and check Vercel function logs, Cron Jobs, Supabase Auth URLs, and Razorpay webhook delivery before sharing the site.
 - Never commit `.env.local`; `.gitignore` excludes it. If a secret was ever committed or shared, rotate it at its provider and update Vercel.
