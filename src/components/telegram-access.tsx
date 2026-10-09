@@ -72,6 +72,10 @@ export function TelegramAccess() {
       setIdentity(result.identity ?? identity);
       setPendingId(null);
       setConnectUrl('');
+      const inviteResponse = await fetch('/api/telegram/invite', { method: 'POST' });
+      const invite = await inviteResponse.json();
+      if (!inviteResponse.ok) throw new Error(invite.error || 'Telegram is linked, but we could not create the group request yet.');
+      setInviteUrl(invite.inviteUrl);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not confirm Telegram.');
     } finally {
@@ -116,7 +120,7 @@ export function TelegramAccess() {
       <button className="button button-dark" onClick={createInvite} disabled={busy}>
         {busy ? 'Creating invite…' : inviteUrl ? 'Create another invite' : 'Get private Telegram invite'} <ArrowUpRight size={15}/>
       </button>
-      {inviteUrl && <p className="form-success"><a href={inviteUrl} target="_blank" rel="noreferrer">Open your private invite</a> · expires in 15 minutes</p>}
+      {inviteUrl && <div className="telegram-invite-result"><p>Your private join request is ready. This link expires in 15 minutes.</p><a className="button button-dark telegram-invite-button" href={inviteUrl} target="_blank" rel="noreferrer">Open Telegram group request <ArrowUpRight size={15}/></a></div>}
     </>}
     {error && <p className="form-error">{error}</p>}
   </div>;

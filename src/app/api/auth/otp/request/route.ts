@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json() as { email?: string; purpose?: string; fullName?: string };
     const email = payload.email?.trim().toLowerCase() || '';
-    const purpose = payload.purpose === 'signup' ? 'signup' : payload.purpose === 'login' ? 'login' : null;
+    const purpose = payload.purpose === 'signup' ? 'signup' : payload.purpose === 'login' ? 'login' : payload.purpose === 'reset' ? 'reset' : null;
     const fullName = payload.fullName?.trim().slice(0, 120) || null;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !purpose) {
       return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
@@ -18,6 +18,13 @@ export async function POST(request: Request) {
     if (purpose === 'signup' && (!fullName || fullName.length < 2)) return NextResponse.json({ error: 'Enter your name.' }, { status: 400 });
 
     const admin = createAdminClient();
+    // Keep reset responses indistinguishable for known and unknown addresses.
+    // A reset code is only issued to an address attached to an existing profile.
+    if (purpose === 'reset') {
+      const { data: profile, error: profileError } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile) return NextResponse.json({ ok: true });
+    }
     const { data: previous } = await admin.from('email_otp_challenges').select('sent_count,sent_window_started_at,updated_at').eq('email', email).maybeSingle();
     const now = Date.now();
     if (previous?.updated_at && now - new Date(previous.updated_at).getTime() < 45_000) {
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
     url.searchParams.set('email', email);
     url.searchParams.set('purpose', purpose);
     url.searchParams.set('token', linkToken);
-    await sendOtpEmail({ to: email, code, purpose, verificationUrl: url.toString() });
+    await sendOtpEmail({ to: email, code, purpose, verificationUrl: purpose === 'reset' ? null : url.toString() });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('OTP request failed:', error);

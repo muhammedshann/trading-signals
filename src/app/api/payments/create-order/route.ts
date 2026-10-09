@@ -15,9 +15,14 @@ export async function POST(request: Request) {
     const { data: { user } } = await db.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Sign in before joining a plan.' }, { status: 401 });
 
+    const admin = createAdminClient();
+    const { data: currentPlan, error: currentPlanError } = await admin.from('subscriptions')
+      .select('id').eq('user_id', user.id).eq('status', 'active').gt('expires_at', new Date().toISOString()).limit(1).maybeSingle();
+    if (currentPlanError) throw currentPlanError;
+    if (currentPlan) return NextResponse.json({ error: 'You already have an active subscription. You can purchase another plan after it expires.' }, { status: 409 });
+
     const body = await request.json() as { planId?: string; agreementId?: string };
     if (!body.planId || !body.agreementId) return NextResponse.json({ error: 'Accept the pre-payment agreement before checkout.' }, { status: 400 });
-    const admin = createAdminClient();
     const { data: agreement, error: agreementError } = await admin.from('agreement_acceptances')
       .select('id,user_id,email,terms_version,risk_disclosure_version,privacy_policy_version,refund_policy_version,payment_id,subscription_id')
       .eq('id', body.agreementId)

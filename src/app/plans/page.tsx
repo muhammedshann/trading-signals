@@ -1,3 +1,27 @@
-import Link from 'next/link'; import { Check, ArrowRight } from 'lucide-react'; import { Checkout } from '@/components/checkout';
-const plans=[{id:'monthly',name:'Monthly',price:'₹2,499',period:'per month',desc:'Flexible access for active learners.',items:['Daily market notes','Trade ideas with risk context','Private Telegram community','Learning library and member Q&A']},{id:'annual',name:'Annual',price:'₹24,990',period:'per year',desc:'A year of focused research, at a lower monthly rate.',items:['Everything in Monthly','Two months included','Annual review session','Priority community support']}];
-export default function Plans(){return <main><section className="page-hero wrap"><div className="eyebrow">MEMBERSHIP</div><h1>One clear membership.<br/><em>Two ways to join.</em></h1><p>Full access to research and the private community, on a schedule that works for you.</p></section><section className="plans-grid wrap">{plans.map((p,i)=><article className={`plan-card ${i?'plan-featured':''}`} key={p.id}>{i===1&&<div className="plan-ribbon">BEST VALUE · SAVE 17%</div>}<div className="plan-name">{p.name}<span>{i?'12 months':'1 month'}</span></div><h2>{p.price}<small>/{i?'year':'month'}</small></h2><p>{p.desc}</p><div className="plan-rule"/><div className="plan-includes">INCLUDED IN YOUR MEMBERSHIP</div>{p.items.map(it=><div className="plan-item" key={it}><Check size={16}/>{it}</div>)}<Checkout planId={p.id} label="Join Signalroom"/><small className="plan-legal">One-time payment for this period. Renew manually. Secure checkout by Razorpay.</small></article>)}</section><div className="wrap plans-note"><span>◇</span><p><b>Payment verification is automatic.</b> Once Razorpay confirms your payment, your dashboard updates and the private Telegram access flow becomes available.</p></div><section className="section-center plans-bottom wrap"><h2>Have a question before joining?</h2><p>Review the membership details or read through the policies.</p><Link className="text-link" href="/faq">Read membership FAQ <ArrowRight size={16}/></Link></section></main>}
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
+import { MembershipOptions } from '@/components/membership-options';
+import { createClient } from '@/lib/supabase/server';
+import type { PlanRecord } from '@/lib/plans';
+
+export default async function Plans() {
+  const db = await createClient();
+  const { data } = db
+    ? await db.from('plans').select('id,name,price_inr,original_price_inr,duration_days,active').eq('active', true).order('price_inr', { ascending: true })
+    : { data: [] };
+  const plans = (data || []) as PlanRecord[];
+  return <main>
+    <section className="page-hero wrap">
+      <div className="eyebrow">MEMBERSHIP</div>
+      <h1>One clear membership.<br/><em>Two ways to join.</em></h1>
+      <p>Choose a plan and complete checkout securely. If you need an account, we’ll send you to sign in first and bring you back to your dashboard.</p>
+    </section>
+    <section className="wrap"><MembershipOptions context="plans" plans={plans}/></section>
+    <div className="wrap plans-note"><span>◇</span><p><b>Payment verification is automatic.</b> After Razorpay verifies your payment, your plan, payment status and Telegram access appear on your dashboard.</p></div>
+    <section className="section-center plans-bottom wrap">
+      <h2>Have a question before joining?</h2>
+      <p>Review the membership details or read through the policies.</p>
+      <Link className="text-link" href="/faq">Read membership FAQ <ArrowRight size={16}/></Link>
+    </section>
+  </main>;
+}

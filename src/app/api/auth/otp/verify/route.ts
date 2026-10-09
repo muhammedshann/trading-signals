@@ -7,15 +7,18 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
   try {
-    const payload = await request.json() as { email?: string; purpose?: string; code?: string; password?: string };
+    const payload = await request.json() as { email?: string; purpose?: string; code?: string; password?: string; confirmPassword?: string };
     const email = payload.email?.trim().toLowerCase() || '';
     const purpose = payload.purpose;
     const code = payload.code?.trim() || '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['signup', 'login'].includes(purpose || '') || !/^\d{6}$/.test(code)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['signup', 'login', 'reset'].includes(purpose || '') || !/^\d{6}$/.test(code)) {
       return NextResponse.json({ error: 'Enter the six-digit code from the email.' }, { status: 400 });
     }
-    if (purpose === 'signup' && (!payload.password || payload.password.length < 8)) {
+    if ((purpose === 'signup' || purpose === 'reset') && (!payload.password || payload.password.length < 8)) {
       return NextResponse.json({ error: 'Your password must be at least 8 characters.' }, { status: 400 });
+    }
+    if (purpose === 'reset' && payload.password !== payload.confirmPassword) {
+      return NextResponse.json({ error: 'Passwords do not match.' }, { status: 400 });
     }
 
     const admin = createAdminClient();
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
         console.error('Verified signup could not create its account:', createError.message);
         return NextResponse.json({ error: 'Could not create this account. If you already registered, sign in instead.' }, { status: 409 });
       }
-    } else {
+    } else if (purpose === 'login') {
       // The email OTP proves mailbox ownership. Confirm legacy accounts that were
       // created before this direct Gmail OTP flow replaced Supabase email OTP.
       const { data: profile, error: profileError } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle();
@@ -51,8 +54,14 @@ export async function POST(request: Request) {
         const { error: confirmError } = await admin.auth.admin.updateUserById(profile.id, { email_confirm: true });
         if (confirmError) throw confirmError;
       }
+    } else {
+      const { data: profile, error: profileError } = await admin.from('profiles').select('id').ilike('email', email).maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile?.id) return NextResponse.json({ error: 'That code expired or is invalid. Request a new one.' }, { status: 400 });
+      const { error: updateError } = await admin.auth.admin.updateUserById(profile.id, { password: payload.password! });
+      if (updateError) throw updateError;
     }
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, passwordReset: purpose === 'reset' });
   } catch (error) {
     console.error('OTP verification failed:', error);
     return NextResponse.json({ error: 'Could not verify the code. Check the server configuration.' }, { status: 500 });
