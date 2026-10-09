@@ -6,7 +6,12 @@ import { ArrowUpRight, BarChart3, MessagesSquare, ShieldCheck, X } from 'lucide-
 import { formatInr, planDiscountPercent, planDuration } from '@/lib/plans';
 
 export function OfferPopup({ priceInr, originalPriceInr, durationDays }: { priceInr: number; originalPriceInr: number | null; durationDays: number }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setOpen(true), 950);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!open) return;

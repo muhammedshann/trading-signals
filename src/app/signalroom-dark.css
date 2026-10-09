@@ -471,6 +471,68 @@ h1,h2,h3,h4{color:#f5f7fa}
 .hero-copy{max-width:760px}
 .hero h1{margin-block:20px 13px}
 .hero-visual{min-height:0}
+.sample-market-label{color:#9aff43;font:8px var(--mono);letter-spacing:.55px}
+.chart-heading h3 .market-change{margin-left:8px;color:#83df9e;font:600 10px var(--sans);letter-spacing:0}
+.candle-toolbar{display:flex;align-items:center;gap:10px;margin-top:13px;color:#9a9a9a;font:8px var(--mono);white-space:nowrap}
+.candle-toolbar span{display:inline-block}
+.candle-toolbar .candle-positive{color:#83df9e}
+.chart-grid{z-index:0}
+.chart svg{z-index:1}
+.candle-grid-line{stroke:#ffffff12;stroke-width:1}
+.candle-reference-line{stroke:#8bff2840;stroke-dasharray:4 5;stroke-width:1}
+.volume-separator{stroke:#ffffff25;stroke-width:1}
+.volume-up{fill:#78d995;opacity:.31}
+.volume-down{fill:#e5747c;opacity:.28}
+.hero-visual{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,.82fr);align-items:center;gap:32px;width:min(100%,980px);height:auto;min-height:300px;padding:21px;border:1px solid #303030;border-radius:27px;background:linear-gradient(145deg,#151515,#0b0b0b);box-shadow:0 22px 70px #0008;text-align:left}
+.market-chart-panel{min-width:0;padding:16px;border:1px solid #292929;border-radius:19px;background:#080808}
+.market-chart-panel .chart-heading{margin-top:19px}
+.market-chart-panel .chart{margin-top:10px}
+.market-chart-panel .visual-foot{margin-top:7px}
+.hero-chart-copy{max-width:330px;margin-inline:auto;padding:10px 5px}
+.hero-chart-copy .eyebrow{color:#9aff43}
+.hero-chart-copy h2{margin:13px 0 10px;color:#f3f3f3;font-size:clamp(23px,2.5vw,32px);line-height:1.14;letter-spacing:-.8px}
+.hero-chart-copy h2 em{color:#8bff28;font-style:normal}
+.hero-chart-copy>p{margin:0;color:#a0a0a0;font-size:12px;line-height:1.7}
+.hero-chart-points{display:grid;gap:9px;margin:18px 0 14px}
+.hero-chart-points span{display:flex;align-items:center;gap:8px;color:#d6d6d6;font-size:10px}
+.hero-chart-points svg{color:#91f34c}
+.hero-chart-copy>small{color:#818181;font-size:9px;line-height:1.5}
+.membership-highlights{overflow:hidden;padding:35px 0 39px;border-block:1px solid #202020;background:#080808}
+.membership-highlights-heading{margin:0 auto 19px;text-align:center}
+.membership-highlights-heading .eyebrow{color:#999}
+.membership-highlights-heading h2{margin:7px 0 0;color:#f2f2f2;font-size:22px;letter-spacing:-.5px}
+.membership-highlights-heading h2 em{color:#8bff28;font-style:normal}
+.membership-marquee{overflow:hidden;width:100%;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.membership-marquee-track{display:flex;width:max-content;gap:12px;animation:membership-scroll 34s linear infinite}
+.membership-marquee:hover .membership-marquee-track{animation-play-state:paused}
+.membership-highlight{display:flex;align-items:center;gap:12px;width:260px;min-height:66px;padding:12px 15px;border:1px solid #2c2c2c;border-radius:16px;background:#111}
+.membership-highlight .highlight-dot{width:8px;height:8px;flex:none;border-radius:50%;background:#8bff28;box-shadow:0 0 12px #8bff2850}
+.membership-highlight b,.membership-highlight small{display:block}
+.membership-highlight b{color:#eee;font-size:11px}
+.membership-highlight small{margin-top:3px;color:#929292;font-size:9px;line-height:1.4}
+@keyframes membership-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(max-width:760px){
+ .hero-visual{grid-template-columns:1fr;gap:17px;width:min(100%,600px);min-height:0;padding:14px;border-radius:21px}
+ .market-chart-panel{padding:12px;border-radius:16px}
+ .hero-chart-copy{max-width:none;width:100%;padding:2px 5px 7px}
+ .hero-chart-copy h2{max-width:440px;font-size:25px}
+ .hero-chart-points{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 9px}
+ .membership-highlights{padding:27px 0 30px}
+ .membership-highlights-heading h2{font-size:20px}
+ .membership-highlight{width:235px;min-height:62px}
+ .membership-marquee-track{animation-duration:29s}
+}
+@media(max-width:600px){
+ .market-chart-panel .chart{height:170px}
+ .market-chart-panel .chart svg{height:140px}
+ .market-chart-panel .candle-toolbar{gap:6px;font-size:7px}
+ .market-chart-panel .candle-toolbar span{letter-spacing:-.2px}
+ .hero-chart-copy h2{font-size:23px}
+ .hero-chart-points{grid-template-columns:1fr;gap:7px;margin:11px 0 8px}
+ .membership-highlights{padding-block:23px 25px}
+ .membership-highlight{width:220px;min-height:58px;padding:10px 12px}
+}
+@media(prefers-reduced-motion:reduce){.membership-marquee-track{animation:none}}
 .page-hero{padding-block:52px 42px}
 .about-values{padding-block:24px}
 .dashboard{padding-bottom:52px}
@@ -499,7 +561,7 @@ h1,h2,h3,h4{color:#f5f7fa}
 .confirm-actions{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:22px}
 .confirm-actions button{min-height:39px}
 .signout-trigger{white-space:nowrap}
-.plans-grid.membership-options{gap:14px;align-items:stretch}
+.plans-grid.membership-options{gap:14px;align-items:start}
 .plans-grid.membership-options>.plan-card{display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:0;padding:23px 23px 20px;border-radius:23px;text-align:left}
 .membership-options .plan-name{min-height:36px;justify-content:space-between;text-align:left;gap:8px;font-size:16px;line-height:1.35}
 .membership-options .plan-name>span{flex:none;font-size:9px}
@@ -508,13 +570,13 @@ h1,h2,h3,h4{color:#f5f7fa}
 .plan-price-current strong{font-size:27px;line-height:1.1;letter-spacing:-.9px}
 .plan-price-current>span{color:#aaa;font-size:10px}
 .plan-price-offer{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:0;padding-bottom:3px;white-space:nowrap}
-.plan-price-offer s{color:#a0a0a0;font-size:11px;text-decoration-thickness:1px}
+.plan-price-offer s{color:#c2c2c2;font-size:14px;text-decoration-thickness:1px}
 .plan-price-offer b{padding:4px 7px;border-radius:999px;background:#26391b;color:#b2ff6d;font-size:9px;font-weight:700;letter-spacing:.1px}
 .membership-options .plan-description{min-height:40px;margin:5px 0 13px;color:#a5a5a5;font-size:11px;line-height:1.55;text-align:left}
 .membership-options .plan-rule{margin:0 0 13px}
 .membership-options .plan-includes{margin-bottom:7px;color:#b4b4b4;font-size:9px;letter-spacing:.55px;text-align:left}
-.plan-feature-list{display:grid;gap:3px;margin-bottom:15px}
-.membership-options .plan-item{display:grid;grid-template-columns:16px minmax(0,1fr);align-items:center;justify-content:initial;gap:8px;min-height:33px;color:#dedede;font-size:10px;line-height:1.4;text-align:left}
+.plan-feature-list{display:grid;gap:0;margin-bottom:15px}
+.membership-options .plan-item{display:grid;grid-template-columns:16px minmax(0,1fr);align-items:center;justify-content:initial;gap:8px;min-height:30px;margin:0;color:#dedede;font-size:10px;line-height:1.4;text-align:left}
 .membership-options .plan-item svg{width:15px;height:15px;flex:none}
 .membership-options .plan-item span{min-width:0}
 .plan-checkout{margin-top:auto}
@@ -549,7 +611,7 @@ h1,h2,h3,h4{color:#f5f7fa}
  .membership-options .plan-name{min-height:32px;font-size:15px}
  .plan-price-current strong{font-size:25px}
  .membership-options .plan-description{min-height:0;margin-bottom:11px}
- .membership-options .plan-item{min-height:31px;font-size:10px}
+ .membership-options .plan-item{min-height:28px;font-size:10px}
  .offer-backdrop{align-items:center;padding:12px}
  .offer-modal{grid-template-columns:1fr;width:min(100%,410px);max-height:calc(100dvh - 24px);overflow-y:auto;border-radius:22px}
  .offer-copy{padding:27px 21px 19px}
@@ -629,4 +691,48 @@ h1,h2,h3,h4{color:#f5f7fa}
  .footer-bottom span:last-child{text-align:left}
  .menu-toggle{width:38px;height:38px;border-radius:11px}
  .nav-links{top:calc(100% + 7px);width:min(calc(100vw - 24px),430px)}
+ .plan-price-offer{gap:6px}
+ .plan-price-offer s{font-size:13px;color:#c6c6c6}
+ .plan-price-offer b{font-size:9px}
+ .plan-feature-list{gap:0;margin-bottom:12px}
+ .membership-options .plan-item{min-height:27px;gap:7px;font-size:10px}
+ input:not([type="checkbox"]):not([type="radio"]),textarea,select{font-size:16px!important}
+}
+.hero-visual{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.92fr);align-items:center;gap:18px;width:min(100%,760px);height:auto;min-height:0;aspect-ratio:2.16;padding:20px 24px;border:1px solid #303030;border-radius:30px;background:linear-gradient(145deg,#141414,#0d0d0d);box-shadow:none;text-align:center}
+.market-chart-panel{display:flex;align-items:center;min-width:0;padding:0;border:0;background:transparent}
+.signal-chart{position:relative;width:100%;padding-bottom:43px}
+.signal-chart>svg{display:block;width:100%;height:auto;overflow:visible}
+.signal-line{fill:none;stroke:#75f0ae;stroke-width:1.5;vector-effect:non-scaling-stroke}
+.signal-crosshair{stroke:#888;stroke-opacity:.55;stroke-width:1;stroke-dasharray:2 3;vector-effect:non-scaling-stroke}
+.signal-level{stroke:#f04455;stroke-width:1.4;vector-effect:non-scaling-stroke}
+.signal-point{fill:#888;stroke:#d2d2d2;stroke-width:1.2;vector-effect:non-scaling-stroke}
+.signal-tag rect{fill:#f34d5b}
+.signal-tag text{fill:#fff;font:700 10px var(--sans);letter-spacing:.3px}
+.signal-tag path{fill:none;stroke:#fff;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.signal-price-tag rect{fill:#f3f3f3}
+.signal-price-tag text{fill:#171717;font:700 9px var(--mono)}
+.signal-chart-controls{position:absolute;bottom:0;left:18%;display:flex;gap:5px}
+.signal-chart-controls span{display:grid;gap:1px;min-width:81px;padding:6px 9px;border-radius:8px;background:#242424;text-align:center}
+.signal-chart-controls small{color:#9b9b9b;font-size:7px;line-height:1.2}
+.signal-chart-controls b{color:#eee;font-size:8px;font-weight:500;line-height:1.2}
+.hero-chart-copy{max-width:260px;margin-inline:auto;padding:8px 2px}
+.hero-chart-copy h2{margin:0 0 12px;color:#f2f2f2;font-size:clamp(19px,2vw,24px);line-height:1.15;letter-spacing:-.5px}
+.hero-chart-copy h2 em{color:#8bff28;font-style:normal}
+.hero-chart-copy>p{max-width:285px;margin:0 auto;color:#969696;font-size:11px;line-height:1.65}
+.hero-chart-copy>small{display:block;margin-top:13px;color:#777;font-size:8px;line-height:1.45}
+@media(max-width:760px){
+ .hero-visual{grid-template-columns:1fr;gap:6px;width:min(100%,560px);aspect-ratio:auto;padding:14px 17px 18px;border-radius:23px}
+ .market-chart-panel{width:100%}
+ .signal-chart{width:min(100%,380px);margin-inline:auto;padding-bottom:39px}
+ .hero-chart-copy{width:100%;max-width:390px;padding:0 5px 4px}
+ .hero-chart-copy h2{font-size:22px;margin-bottom:8px}
+ .hero-chart-copy>p{font-size:10px}
+ .hero-chart-copy>small{margin-top:8px}
+}
+@media(max-width:420px){
+ .hero-visual{padding:10px 11px 15px;border-radius:19px}
+ .signal-chart{padding-bottom:36px}
+ .signal-chart-controls{left:16%}
+ .signal-chart-controls span{min-width:75px}
+ .hero-chart-copy h2{font-size:20px}
 }

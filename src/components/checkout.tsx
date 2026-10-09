@@ -69,7 +69,7 @@ export function Checkout({ planId, label = 'Choose this plan' }: { planId: strin
   }
 
   return <>
-    {!agreementOpen ? <button type="button" className="button button-dark checkout-button checkout-review" onClick={() => setAgreementOpen(true)}>Review risk disclosure &amp; continue</button> : <>
+    {!agreementOpen ? <button type="button" className="button button-dark checkout-button checkout-review" onClick={() => setAgreementOpen(true)}>Continue</button> : <>
       <section className="checkout-agreement" aria-labelledby={`checkout-risk-${planId}`}>
         <h3 id={`checkout-risk-${planId}`}>Important Risk Disclosure</h3>
         <p>{RISK_DISCLOSURE_TEXT}</p>

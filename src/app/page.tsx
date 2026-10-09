@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChartNoAxesCombined, CircleHelp, LineChart, ShieldCheck, UsersRound } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ChartNoAxesCombined, CircleHelp, ShieldCheck, UsersRound } from 'lucide-react';
 import { MembershipOptions } from '@/components/membership-options';
 import { OfferPopup } from '@/components/offer-popup';
 import { createClient } from '@/lib/supabase/server';
@@ -11,6 +11,14 @@ const benefits = [
   ['A focused community', 'Discuss markets with people who value patience, preparation and respectful debate.'],
 ];
 
+const membershipHighlights = [
+  ['3–5 trade ideas', 'Shared on active market days'],
+  ['Defined risk levels', 'Entry zones and invalidation context'],
+  ['Market notes', 'Structure and scenario analysis'],
+  ['Private Telegram', 'Member access while subscribed'],
+  ['Your own decisions', 'No guaranteed outcomes or returns'],
+];
+
 export default async function Home() {
   const db = await createClient();
   const { data: { user } } = db ? await db.auth.getUser() : { data: { user: null } };
@@ -18,11 +26,11 @@ export default async function Home() {
     ? await db.from('plans').select('id,name,price_inr,original_price_inr,duration_days,active').eq('active', true).order('price_inr', { ascending: true })
     : { data: [] };
   const plans = (planRows || []) as PlanRecord[];
-  const annualPlan = plans.find(plan => plan.id === 'annual') || { price_inr: 24990, original_price_inr: null, duration_days: 365 };
+  const offerPlan = plans.find(plan => plan.id === 'quarterly') || plans.find(plan => plan.duration_days === 90) || { price_inr: 3999, original_price_inr: 6999, duration_days: 90 };
   const accountHref = user ? '/dashboard' : '/signup';
 
   return <main>
-    {!user && <OfferPopup priceInr={annualPlan.price_inr} originalPriceInr={annualPlan.original_price_inr} durationDays={annualPlan.duration_days}/>}
+    {!user && <OfferPopup priceInr={offerPlan.price_inr} originalPriceInr={offerPlan.original_price_inr} durationDays={offerPlan.duration_days}/>}
     <section className="hero wrap">
       <div className="hero-copy">
         <div className="eyebrow"><span className="eyebrow-dot"/> Independent market research · Member-first approach</div>
@@ -39,21 +47,24 @@ export default async function Home() {
         </div>
       </div>
       <div className="hero-visual">
-        <div className="visual-top"><span>MARKET NOTE <b>· NIFTY 50</b></span><span className="live-dot">● &nbsp;ILLUSTRATIVE</span></div>
-        <div className="chart-heading"><div><small>STRUCTURE REVIEW</small><h3>Index futures</h3></div><span className="chart-period">Daily <span>⌄</span></span></div>
-        <div className="chart">
-          <div className="chart-grid"><span>24,900</span><span>24,700</span><span>24,500</span><span>24,300</span></div>
-          <svg viewBox="0 0 520 220" preserveAspectRatio="none" aria-label="Illustrative market structure chart">
-            <defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#577960" stopOpacity=".17"/><stop offset="1" stopColor="#577960" stopOpacity="0"/></linearGradient></defs>
-            <path d="M0,180 C32,168 38,147 65,155 S105,193 127,165 S167,144 184,151 S210,137 231,120 S263,154 282,134 S304,109 328,122 S361,87 380,102 S402,118 424,80 S460,83 481,55 S500,72 520,30 V220 H0 Z" fill="url(#area)"/>
-            <path d="M0,180 C32,168 38,147 65,155 S105,193 127,165 S167,144 184,151 S210,137 231,120 S263,154 282,134 S304,109 328,122 S361,87 380,102 S402,118 424,80 S460,83 481,55 S500,72 520,30" fill="none" stroke="#42634a" strokeWidth="2.5"/>
-            <line x1="0" y1="105" x2="520" y2="105" stroke="#c9a66e" strokeDasharray="5 5"/>
-            <circle cx="424" cy="80" r="5" fill="#42634a" stroke="white" strokeWidth="2"/>
-          </svg>
-          <div className="axis-labels"><span>09:20</span><span>11:00</span><span>12:40</span><span>14:20</span><span>15:20</span></div>
+        <div className="market-chart-panel">
+          <div className="signal-chart" aria-label="Illustrative trading signal chart">
+            <svg viewBox="0 0 420 230" preserveAspectRatio="none" role="img" aria-label="Sample price line with a marked research level">
+              <path className="signal-line" d="M0 55 C8 52 7 20 17 25 C25 30 20 50 31 42 C39 37 36 58 45 62 C55 67 48 79 59 78 C71 77 67 104 79 104 C90 104 85 133 98 129 C110 125 105 155 116 147 C129 139 124 174 137 167 C149 160 145 151 157 153 C171 155 167 131 178 126 C190 121 185 147 198 142 C211 137 205 119 219 117 C232 115 227 75 240 72 C253 69 248 35 261 30 C275 25 270 55 282 47 C294 39 289 62 301 66 C314 70 307 103 321 104 C334 105 328 78 341 80 C354 82 349 104 362 101 C376 98 370 121 383 118 C397 115 392 139 406 135 C414 133 416 128 420 126"/>
+              <line className="signal-crosshair" x1="230" y1="0" x2="230" y2="184"/>
+              <line className="signal-level" x1="111" y1="91" x2="331" y2="91"/>
+              <circle className="signal-point" cx="230" cy="91" r="5"/>
+              <g className="signal-tag" transform="translate(184 58)"><rect width="67" height="25" rx="12"/><text x="11" y="16">SETUP</text><path d="M53 7l8 8m0-8v8h-8"/></g>
+              <g className="signal-price-tag" transform="translate(331 82)"><rect width="75" height="20" rx="10"/><text x="9" y="13">LEVEL</text></g>
+            </svg>
+            <div className="signal-chart-controls"><span><small>MARKET</small><b>NIFTY 50</b></span><span><small>TIMEFRAME</small><b>5 min</b></span></div>
+          </div>
         </div>
-        <div className="chart-note"><span className="note-mark"><LineChart size={16}/></span><div><b>Context before conviction</b><small>Levels, scenarios and what would change the view.</small></div><span className="note-arrow">↗</span></div>
-        <div className="visual-foot"><span>For education. Not a recommendation.</span><span>Illustrative example</span></div>
+        <div className="hero-chart-copy">
+          <h2>Review the setup.<br/>You decide <em>your risk.</em></h2>
+          <p>Trade ideas include market context and key levels, so you can make your own informed decision.</p>
+          <small>Trading involves risk. No outcomes are guaranteed.</small>
+        </div>
       </div>
     </section>
 
@@ -69,6 +80,8 @@ export default async function Home() {
     </section>
 
     <section className="trust-strip"><div className="wrap trust-inner"><span><ShieldCheck/> Clear risk levels</span><span><BookOpen/> Research with context</span><span><UsersRound/> Thoughtful community</span><span><ChartNoAxesCombined/> No return promises</span></div></section>
+
+    <section className="membership-highlights" aria-label="Signalroom membership features"><div className="membership-highlights-heading"><div className="eyebrow">INSIDE THE MEMBERSHIP</div><h2>Research to support <em>your process.</em></h2></div><div className="membership-marquee"><div className="membership-marquee-track">{[...membershipHighlights, ...membershipHighlights].map(([title, description], index) => <article className="membership-highlight" key={`${title}-${index}`} aria-hidden={index >= membershipHighlights.length}><span className="highlight-dot"/><div><b>{title}</b><small>{description}</small></div></article>)}</div></div></section>
 
     <section className="section wrap" id="about">
       <div className="section-intro"><div className="eyebrow">THE SIGNALROOM APPROACH</div><h2>Markets move fast.<br/><em>Your process shouldn’t.</em></h2><p>Signalroom brings market research, trade planning and an engaged community into one focused membership. No noise. Just a clearer framework for doing your own work.</p><Link className="text-link" href="/about">Get to know us <ArrowRight size={15}/></Link></div>
