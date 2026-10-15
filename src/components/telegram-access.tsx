@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ArrowUpRight, RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight, CheckCircle2, RefreshCw } from 'lucide-react';
 
 type TelegramIdentity = { telegramUserId: string; username: string | null; displayName: string | null };
 
@@ -13,25 +13,53 @@ export function TelegramAccess() {
   const [inviteUrl, setInviteUrl] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  async function refreshStatus() {
-    setBusy(true);
+  async function refreshStatus(silent = false) {
+    if (!silent) setBusy(true);
     setError('');
     try {
       const response = await fetch('/api/telegram/connect');
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
-      setConnected(Boolean(result.connected));
+      const isConn = Boolean(result.connected);
+      setConnected(isConn);
       setIdentity(result.identity ?? result.pending ?? null);
       setPendingId(result.pending?.id ?? null);
+      if (isConn) {
+        setConnectUrl('');
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not check Telegram connection.');
+      if (!silent) {
+        setError(cause instanceof Error ? cause.message : 'Could not check Telegram connection.');
+      }
     } finally {
-      setBusy(false);
+      if (!silent) setBusy(false);
     }
   }
 
-  useEffect(() => { void refreshStatus(); }, []);
+  useEffect(() => {
+    void refreshStatus();
+  }, []);
+
+  // Auto-poll status while waiting for bot verification
+  useEffect(() => {
+    if (connectUrl && !connected) {
+      pollTimerRef.current = setInterval(() => {
+        void refreshStatus(true);
+      }, 3000);
+    } else if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [connectUrl, connected]);
 
   async function connect() {
     setBusy(true);
@@ -44,6 +72,7 @@ export function TelegramAccess() {
         setConnected(true);
         setIdentity(result.identity ?? null);
         setPendingId(null);
+        setConnectUrl('');
       } else {
         setConnected(false);
         setIdentity(null);
@@ -101,26 +130,39 @@ export function TelegramAccess() {
   return <div>
     {!connected ? <>
       {pendingId && identity ? <div className="form-success">
-        <p>The Telegram account that responded is <strong>{identity.displayName || 'Telegram user'}</strong>{identity.username ? ` (@${identity.username})` : ''} · ID ending <strong>{identity.telegramUserId.slice(-4)}</strong>.</p>
-        <p>No group access is granted until you confirm this identity here.</p>
-        <button className="button button-dark" onClick={confirmTelegram} disabled={busy}>{busy ? 'Confirming…' : 'Confirm this is my Telegram account'}</button>
-        <button className="button button-light" onClick={connect} disabled={busy}>Wrong account? Create a fresh link</button>
+        <p>Telegram account detected: <strong>{identity.displayName || 'Telegram user'}</strong>{identity.username ? ` (@${identity.username})` : ''} · ID ending <strong>{identity.telegramUserId.slice(-4)}</strong>.</p>
+        <p>Please tap <strong>&ldquo;Yes, Verify &amp; Join Group&rdquo;</strong> in the Telegram bot to finish verification and enter the group.</p>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+          <button className="button button-dark" onClick={confirmTelegram} disabled={busy}>{busy ? 'Confirming…' : 'Confirm on website instead'}</button>
+          <button className="button button-light" onClick={connect} disabled={busy}>Create a fresh link</button>
+        </div>
       </div> : <>
         <button className="button button-dark" onClick={connect} disabled={busy}>
           {busy ? 'Preparing…' : 'Connect my Telegram'} <ArrowUpRight size={15}/>
         </button>
-        {connectUrl && <div className="form-success">
-          <p>Open the bot and press <strong>Start</strong>. The bot will reply with the account it received. Return here to review that identity and confirm it; only then can you request group access.</p>
-          <a className="button button-dark" href={connectUrl} target="_blank" rel="noreferrer">Open Telegram bot <ArrowUpRight size={15}/></a>
-          <button className="button button-light" onClick={refreshStatus} disabled={busy}><RefreshCw size={15}/> I pressed Start — check identity</button>
+        {connectUrl && <div className="form-success" style={{ marginTop: '1rem' }}>
+          <p><strong>Next steps:</strong></p>
+          <ol style={{ paddingLeft: '1.25rem', margin: '0.5rem 0' }}>
+            <li>Tap <strong>Open Telegram bot</strong> below.</li>
+            <li>In Telegram, press <strong>Start</strong>.</li>
+            <li>When the bot asks <em>&ldquo;Is this the Telegram account you want to verify?&rdquo;</em>, tap <strong>&ldquo;Yes, Verify &amp; Join Group&rdquo;</strong>.</li>
+            <li>The bot verifies you immediately and provides direct entry to the VIP group!</li>
+          </ol>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+            <a className="button button-dark" href={connectUrl} target="_blank" rel="noreferrer">Open Telegram bot <ArrowUpRight size={15}/></a>
+            <button className="button button-light" onClick={() => void refreshStatus(false)} disabled={busy}><RefreshCw size={15}/> Check status</button>
+          </div>
+          <small style={{ display: 'block', marginTop: '0.5rem', opacity: 0.8 }}>This page automatically updates once confirmed in Telegram.</small>
         </div>}
       </>}
     </> : <>
-      <p className="form-success">Telegram account connected{identity ? `: ${identity.displayName || 'Telegram user'}${identity.username ? ` (@${identity.username})` : ''}` : ''}.</p>
+      <p className="form-success" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <CheckCircle2 size={16} /> Telegram account connected{identity ? `: ${identity.displayName || 'Telegram user'}${identity.username ? ` (@${identity.username})` : ''}` : ''}.
+      </p>
       <button className="button button-dark" onClick={createInvite} disabled={busy}>
         {busy ? 'Creating invite…' : inviteUrl ? 'Create another invite' : 'Get private Telegram invite'} <ArrowUpRight size={15}/>
       </button>
-      {inviteUrl && <div className="telegram-invite-result"><p>Your private join request is ready. This link expires in 15 minutes.</p><a className="button button-dark telegram-invite-button" href={inviteUrl} target="_blank" rel="noreferrer">Open Telegram group request <ArrowUpRight size={15}/></a></div>}
+      {inviteUrl && <div className="telegram-invite-result"><p>Your private invite link is ready. This link expires in 15 minutes.</p><a className="button button-dark telegram-invite-button" href={inviteUrl} target="_blank" rel="noreferrer">Open Telegram group request <ArrowUpRight size={15}/></a></div>}
     </>}
     {error && <p className="form-error">{error}</p>}
   </div>;

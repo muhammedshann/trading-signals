@@ -10,11 +10,17 @@ export async function telegramCall<T>(method: string, payload: Record<string, un
     cache: 'no-store',
   });
   const result = await response.json();
-  if (!response.ok || !result.ok) throw new Error(`Telegram ${method} failed.`);
+  if (!response.ok || !result.ok) {
+    const desc = result?.description ? `: ${result.description}` : '';
+    throw new Error(`Telegram ${method} failed${desc}.`);
+  }
   return result.result as T;
 }
 
 export async function kickTelegramMember(chatId: string, telegramUserId: number | string) {
   await telegramCall('banChatMember', { chat_id: chatId, user_id: telegramUserId });
 }
-import 'server-only';
+
+export async function unbanTelegramMember(chatId: string, telegramUserId: number | string) {
+  await telegramCall('unbanChatMember', { chat_id: chatId, user_id: telegramUserId, only_if_banned: true });
+}

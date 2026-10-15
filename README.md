@@ -46,7 +46,7 @@ To make an administrator, set the Supabase Auth user's `app_metadata` to `{ "rol
 
 ## Telegram lifecycle
 
-The app never publishes a permanent group URL. A paid member opens a one-time `/start` code from the signed-in website. The bot reads Telegram's stable numeric user ID and profile name from Telegram's webhook, but keeps the identity pending. The member must review that identity and confirm it on the signed-in website before it is linked; starting the bot alone grants no group access. The website then creates a short-lived join-request link. The webhook approves requests only when the confirmed Telegram account matches the paying website user, the invite is unused, and the subscription is active. Expired or unknown joins are declined or removed. The daily `/api/telegram/expire` job removes linked members without a current active subscription. On renewal, a fresh invite allows the same linked account to rejoin.
+The app never publishes a permanent group URL. A paid member clicks "Connect my Telegram" from their signed-in dashboard to get a one-time `/start <code>` bot link. When the member opens the bot and sends `/start`, the bot verifies the link and prompts the user right inside Telegram: *"Is this the Telegram account you want to verify and connect?"* with a **"Yes, Verify & Join Group"** button. When the user taps Yes, the bot verifies the account against active subscription data, links their Telegram account, unbans them if previously removed, and immediately generates an exclusive, single-use invite link for direct entry into the VIP group. The member dashboard automatically detects the verified status via polling. Expired or unknown group joins are automatically declined or removed by the webhook and the daily `/api/telegram/expire` job. On renewal, starting the bot again or clicking in dashboard provides a fresh invite link to rejoin.
 
 ### Telegram setup guide
 
@@ -72,11 +72,11 @@ The app never publishes a permanent group URL. A paid member opens a one-time `/
    curl -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
      -d "url=https://YOUR_DOMAIN/api/telegram/webhook" \
      -d "secret_token=${TELEGRAM_WEBHOOK_SECRET}" \
-     -d 'allowed_updates=["message","chat_join_request","chat_member","my_chat_member"]'
+     -d 'allowed_updates=["message","callback_query","chat_join_request","chat_member","my_chat_member"]'
    ```
 
    `setWebhook` should return `"ok":true`. Check delivery status with Telegram's `getWebhookInfo` method; it must show the deployed webhook URL and no recent delivery error. Do not enable a webhook on `localhost`; Telegram cannot reach it.
-9. **Test using a Razorpay test payment.** Buy a plan with the test gateway. On the success screen, open the bot and press **Start**, return to the page, and continue to the group invite. The bot approves the join request only for that connected Telegram account. Check `telegram_members` in Supabase for its verified mapping. Then, for a test account only, set its active subscription `expires_at` to a past timestamp in Supabase and invoke the expiry endpoint with `Authorization: Bearer YOUR_CRON_SECRET`. Confirm the member is removed. Renew/restore the test subscription, request another invite in the dashboard and rejoin. Restore any test dates after testing.
+9. **Test using a Razorpay test payment.** Buy a plan with the test gateway. On the dashboard, click **Connect my Telegram**, open the bot, press **Start**, and tap **Yes, Verify & Join Group**. The bot verifies your subscription and gives you instant access to join the VIP group. Check `telegram_members` in Supabase for its verified mapping. Then, for a test account only, set its active subscription `expires_at` to a past timestamp in Supabase and invoke the expiry endpoint with `Authorization: Bearer YOUR_CRON_SECRET`. Confirm the member is removed. Renew/restore the test subscription, request another invite in the dashboard and rejoin. Restore any test dates after testing.
 
 Members who were already inside the group before linking was enabled are not yet verified against website accounts. They should use the website's **Connect my Telegram** button while their membership is active, then request a fresh invite. Localhost cannot receive Telegram webhooks, so bot linking and automatic join approval require the deployed HTTPS site (or a public HTTPS development tunnel).
 
