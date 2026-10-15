@@ -54,11 +54,45 @@ async function sendGmailMessage(to: string, subject: string, textBody: string, h
   }
 }
 
+async function sendViaResend(to: string, subject: string, textBody: string, htmlBody: string) {
+  const apiKey = process.env.RESEND_API_KEY!;
+  const from = process.env.RESEND_FROM_EMAIL || 'Signalroom <onboarding@resend.dev>';
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      subject,
+      text: textBody,
+      html: htmlBody,
+    }),
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    console.error('Resend API send failed:', response.status, details);
+    throw new Error(`Resend could not send email: ${details}`);
+  }
+}
+
+async function dispatchEmail(to: string, subject: string, textBody: string, htmlBody: string) {
+  if (process.env.RESEND_API_KEY) {
+    await sendViaResend(to, subject, textBody, htmlBody);
+  } else {
+    await sendGmailMessage(to, subject, textBody, htmlBody);
+  }
+}
+
 export async function sendOtpEmail({ to, code, verificationUrl, purpose }: {
   to: string; code: string; verificationUrl: string | null; purpose: 'signup' | 'login' | 'reset';
 }) {
-  const sender = process.env.GMAIL_SENDER_EMAIL;
-  if (!sender) throw new Error('Google email credentials are not configured.');
+  const hasResend = Boolean(process.env.RESEND_API_KEY);
+  const sender = process.env.RESEND_FROM_EMAIL || process.env.GMAIL_SENDER_EMAIL;
+  if (!hasResend && !sender) throw new Error('Email credentials are not configured.');
 
   const escapedUrl = verificationUrl ? escapeHtml(verificationUrl) : null;
   const title = purpose === 'signup' ? 'Confirm your email' : purpose === 'reset' ? 'Reset your password' : 'Your sign-in code';
@@ -68,7 +102,7 @@ export async function sendOtpEmail({ to, code, verificationUrl, purpose }: {
   const linkHtml = escapedUrl ? `<p style="margin:26px 0 20px"><a href="${escapedUrl}" style="display:inline-block;background:#173c35;color:#fff;text-decoration:none;font-weight:600;padding:14px 22px;border-radius:7px">${purpose === 'signup' ? 'Verify email and continue' : 'Verify email'}</a></p><p style="color:#66736e;font-size:13px;line-height:1.6">If the button does not open, copy this link into the browser on the device where you started:<br><a href="${escapedUrl}" style="color:#285b50;word-break:break-all">${escapedUrl}</a></p>` : '';
   const htmlBody = `<!doctype html><html><body style="margin:0;background:#f3f5f3;font-family:Arial,Helvetica,sans-serif;color:#1c2925"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f3;padding:36px 14px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#fff;border:1px solid #e2e8e3;border-radius:12px"><tr><td style="padding:30px 32px"><div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#285b50">SIGNALROOM</div><h1 style="margin:24px 0 8px;font-size:24px;line-height:1.3">${title}</h1><p style="margin:0;color:#5b6863;font-size:15px;line-height:1.65">Use this one-time code to ${instruction}.</p><div style="margin:22px 0;padding:17px;text-align:center;background:#f3f6f3;border:1px solid #e1e9e2;border-radius:8px;color:#173c35;font-size:30px;letter-spacing:8px;font-weight:700">${escapeHtml(code)}</div><p style="margin:0;color:#68736f;font-size:13px">Copy and paste this code into the page where you started.</p>${linkHtml}<p style="border-top:1px solid #e8ece9;margin:28px 0 0;padding-top:18px;color:#7a8580;font-size:12px;line-height:1.6">If you did not request this email, ignore it. Never share your verification code.</p></td></tr></table><p style="color:#89928e;font-size:11px;margin:18px 0 0">A secure message from Signalroom</p></td></tr></table></body></html>`;
   const subject = purpose === 'signup' ? 'Confirm your Signalroom account' : purpose === 'reset' ? 'Reset your Signalroom password' : 'Your Signalroom sign-in code';
-  await sendGmailMessage(to, subject, textBody, htmlBody);
+  await dispatchEmail(to, subject, textBody, htmlBody);
 }
 
 export type MembershipReceipt = {
@@ -115,6 +149,5 @@ export async function sendMembershipReceiptEmail(receipt: MembershipReceipt) {
   const rowsHtml = rows.map(([label, value]) => `<tr><td style="padding:10px 12px;border-bottom:1px solid #e8ece9;color:#6b766e">${escapeHtml(label)}</td><td style="padding:10px 12px;border-bottom:1px solid #e8ece9;text-align:right;font-weight:600;color:#24362a">${escapeHtml(value)}</td></tr>`).join('');
   const linksHtml = policyLinks.map(([name, path]) => `<a href="${escapeHtml(receipt.siteUrl + path)}" style="color:#315c3c;margin-right:12px">${escapeHtml(name)}</a>`).join('');
   const htmlBody = `<!doctype html><html><body style="margin:0;background:#f3f5f3;font-family:Arial,Helvetica,sans-serif;color:#1c2925"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f3;padding:28px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e2e8e3;border-radius:12px"><tr><td style="padding:28px"><div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#285b50">SIGNALROOM</div><h1 style="margin:22px 0 6px;font-size:23px">Payment confirmed</h1><p style="margin:0 0 22px;color:#647168;font-size:14px;line-height:1.6">Your membership is active. Keep this email for your records.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e8ece9;border-radius:8px;font-size:13px">${rowsHtml}</table><h2 style="font-size:14px;margin:24px 0 10px">Your policies</h2><p style="font-size:12px;line-height:2">${linksHtml}</p><p style="border-top:1px solid #e8ece9;margin:20px 0 0;padding-top:16px;color:#758078;font-size:12px;line-height:1.7">Trading involves risk. This membership does not guarantee returns. You are responsible for your own trading and investment decisions.</p></td></tr></table></td></tr></table></body></html>`;
-  await sendGmailMessage(receipt.to, 'Signalroom membership payment confirmed', textBody, htmlBody);
+  await dispatchEmail(receipt.to, 'Signalroom membership payment confirmed', textBody, htmlBody);
 }
-import 'server-only';
