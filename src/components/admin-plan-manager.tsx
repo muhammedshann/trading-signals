@@ -21,6 +21,7 @@ export function AdminPlanManager({ plans }: { plans: PlanRecord[] }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [pendingActive, setPendingActive] = useState<boolean | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<PlanRecord | null>(null);
   const discount = draft.offerPrice && draft.originalPrice && Number(draft.originalPrice) > Number(draft.offerPrice)
     ? Math.round(((Number(draft.originalPrice) - Number(draft.offerPrice)) / Number(draft.originalPrice)) * 100)
     : 0;
@@ -39,6 +40,31 @@ export function AdminPlanManager({ plans }: { plans: PlanRecord[] }) {
     setDraft({ id: plan.id, name: plan.name, offerPrice: String(plan.price_inr), originalPrice: plan.original_price_inr ? String(plan.original_price_inr) : '', durationDays: String(plan.duration_days) });
     setError('');
     setMessage('');
+  }
+
+  async function deletePlan() {
+    if (!planToDelete) return;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`/api/admin/plans?id=${encodeURIComponent(planToDelete.id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json() as { ok?: boolean; error?: string };
+      if (!response.ok) {
+        throw new Error(result.error || 'Could not delete this plan.');
+      }
+      setMessage(`Plan "${planToDelete.name}" was successfully deleted.`);
+      setPlanToDelete(null);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete this plan.');
+      setPlanToDelete(null);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function save(active: boolean) {
@@ -78,13 +104,15 @@ export function AdminPlanManager({ plans }: { plans: PlanRecord[] }) {
     <div className="plan-admin-heading"><div><h2>Membership plans</h2><p>Create plans, edit prices, and keep unfinished offers as drafts.</p></div><button className="button button-dark button-small" type="button" onClick={startCreate}>Add a plan</button></div>
     {message && <p className="form-success admin-feedback" role="status">{message}</p>}
     {error && <p className="form-error admin-feedback" role="alert">{error}</p>}
-    <div className="table-wrap"><table><thead><tr><th>Plan</th><th>Offer price</th><th>Actual price</th><th>Offer</th><th>Duration</th><th>Status</th><th>Edit</th></tr></thead><tbody>
+    <div className="table-wrap"><table><thead><tr><th>Plan</th><th>Offer price</th><th>Actual price</th><th>Offer</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead><tbody>
       {plans.map(plan => {
         const percent = planDiscountPercent(plan);
-        return <tr key={plan.id}><td>{plan.name}</td><td>{formatInr(plan.price_inr)}</td><td>{plan.original_price_inr ? formatInr(plan.original_price_inr) : '—'}</td><td>{percent ? `${percent}% off` : '—'}</td><td>{planDuration(plan.duration_days)}</td><td><span className={`status-pill ${plan.active ? 'status-active' : 'status-muted'}`}>{plan.active ? 'Published' : 'Draft'}</span></td><td><button type="button" className="table-action" onClick={() => startEdit(plan)}>Edit</button></td></tr>;
+        return <tr key={plan.id}><td>{plan.name}</td><td>{formatInr(plan.price_inr)}</td><td>{plan.original_price_inr ? formatInr(plan.original_price_inr) : '—'}</td><td>{percent ? `${percent}% off` : '—'}</td><td>{planDuration(plan.duration_days)}</td><td><span className={`status-pill ${plan.active ? 'status-active' : 'status-muted'}`}>{plan.active ? 'Published' : 'Draft'}</span></td><td><div className="table-actions-cell"><button type="button" className="table-action" onClick={() => startEdit(plan)}>Edit</button><button type="button" className="table-action table-action-danger" onClick={() => { setPlanToDelete(plan); setError(''); setMessage(''); }}>Delete</button></div></td></tr>;
       })}
       {!plans.length && <tr><td colSpan={7}>No plans yet. Add a plan to make an offer available.</td></tr>}
     </tbody></table></div>
+
+    <ConfirmationModal open={Boolean(planToDelete)} title={`Delete plan "${planToDelete?.name}"?`} message={planToDelete?.active ? 'This plan is currently published. If members have purchased this plan, permanent deletion will be prevented to protect subscriber history. Are you sure you want to delete it?' : 'This plan will be permanently removed. Are you sure?'} confirmLabel="Delete plan" danger={true} busy={busy} onCancel={() => setPlanToDelete(null)} onConfirm={() => void deletePlan()}/>
 
     {formOpen && <form className="plan-editor" onSubmit={event => event.preventDefault()}>
       <div className="plan-editor-title"><div><span className="eyebrow">{editingId ? 'EDIT PLAN' : 'NEW PLAN'}</span><h3>{editingId ? `Editing ${draft.name}` : 'Plan details'}</h3></div>{editingId && <small>Plan ID: {editingId}</small>}</div>

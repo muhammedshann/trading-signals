@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSameOriginRequest } from '@/lib/auth/otp';
+import { kickTelegramMember, unbanTelegramMember } from '@/lib/telegram/bot-api';
 
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: 'Invalid request origin.' }, { status: 403 });
@@ -47,12 +48,33 @@ export async function POST(request: Request) {
         ban_duration: '876000h', email: `removed+${body.id}@deleted.invalid`, email_confirm: true, user_metadata: { full_name: 'Removed member' },
       });
       if (authError) throw authError;
+    } else if (body.kind === 'bot_kick') {
+      const chatId = process.env.TELEGRAM_CHAT_ID;
+      if (!chatId) return NextResponse.json({ error: 'TELEGRAM_CHAT_ID is not configured in .env.local.' }, { status: 400 });
+      try {
+        await kickTelegramMember(chatId, body.id);
+      } catch (tgError) {
+        console.warn('Bot kick call failed (may not be in group):', tgError);
+      }
+      const { error } = await admin.from('telegram_members').update({ kicked_at: new Date().toISOString() }).eq('telegram_user_id', body.id);
+      if (error) throw error;
+    } else if (body.kind === 'bot_unban') {
+      const chatId = process.env.TELEGRAM_CHAT_ID;
+      if (!chatId) return NextResponse.json({ error: 'TELEGRAM_CHAT_ID is not configured in .env.local.' }, { status: 400 });
+      try {
+        await unbanTelegramMember(chatId, body.id);
+      } catch (tgError) {
+        console.warn('Bot unban call failed:', tgError);
+      }
+      const { error } = await admin.from('telegram_members').update({ kicked_at: null }).eq('telegram_user_id', body.id);
+      if (error) throw error;
     } else {
       return NextResponse.json({ error: 'Invalid operation.' }, { status: 400 });
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('Admin operation failed:', error);
-    return NextResponse.json({ error: 'Update failed.' }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Update failed.' }, { status: 500 });
   }
 }
+

@@ -127,12 +127,12 @@ export function TelegramAccess() {
     }
   }
 
-  return <div>
+  return <div className="telegram-access-wrap">
     {!connected ? <>
-      {pendingId && identity ? <div className="form-success">
+      {pendingId && identity ? <div className="telegram-pending-card">
         <p>Telegram account detected: <strong>{identity.displayName || 'Telegram user'}</strong>{identity.username ? ` (@${identity.username})` : ''} · ID ending <strong>{identity.telegramUserId.slice(-4)}</strong>.</p>
         <p>Please tap <strong>&ldquo;Yes, Verify &amp; Join Group&rdquo;</strong> in the Telegram bot to finish verification and enter the group.</p>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+        <div className="telegram-steps-actions">
           <button className="button button-dark" onClick={confirmTelegram} disabled={busy}>{busy ? 'Confirming…' : 'Confirm on website instead'}</button>
           <button className="button button-light" onClick={connect} disabled={busy}>Create a fresh link</button>
         </div>
@@ -140,30 +140,31 @@ export function TelegramAccess() {
         <button className="button button-dark" onClick={connect} disabled={busy}>
           {busy ? 'Preparing…' : 'Connect my Telegram'} <ArrowUpRight size={15}/>
         </button>
-        {connectUrl && <div className="form-success" style={{ marginTop: '1rem' }}>
-          <p><strong>Next steps:</strong></p>
-          <ol style={{ paddingLeft: '1.25rem', margin: '0.5rem 0' }}>
+        {connectUrl && <div className="telegram-steps-card">
+          <p><strong>Next steps to join:</strong></p>
+          <ol className="telegram-steps-list">
             <li>Tap <strong>Open Telegram bot</strong> below.</li>
             <li>In Telegram, press <strong>Start</strong>.</li>
             <li>When the bot asks <em>&ldquo;Is this the Telegram account you want to verify?&rdquo;</em>, tap <strong>&ldquo;Yes, Verify &amp; Join Group&rdquo;</strong>.</li>
-            <li>The bot verifies you immediately and provides direct entry to the VIP group!</li>
+            <li>The bot verifies you immediately and provides your direct entry link into the VIP group!</li>
           </ol>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.75rem' }}>
+          <div className="telegram-steps-actions">
             <a className="button button-dark" href={connectUrl} target="_blank" rel="noreferrer">Open Telegram bot <ArrowUpRight size={15}/></a>
             <button className="button button-light" onClick={() => void refreshStatus(false)} disabled={busy}><RefreshCw size={15}/> Check status</button>
           </div>
-          <small style={{ display: 'block', marginTop: '0.5rem', opacity: 0.8 }}>This page automatically updates once confirmed in Telegram.</small>
+          <small>This page will automatically update once verified in Telegram.</small>
         </div>}
       </>}
-    </> : <>
-      <p className="form-success" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <CheckCircle2 size={16} /> Telegram account connected{identity ? `: ${identity.displayName || 'Telegram user'}${identity.username ? ` (@${identity.username})` : ''}` : ''}.
-      </p>
+    </> : <div className="telegram-connected-box">
+      <div className="telegram-connected-pill">
+        <CheckCircle2 size={16} />
+        <span>Telegram connected{identity ? `: ${identity.displayName || 'Telegram user'}${identity.username ? ` (@${identity.username})` : ''}` : ''}</span>
+      </div>
       <button className="button button-dark" onClick={createInvite} disabled={busy}>
         {busy ? 'Creating invite…' : inviteUrl ? 'Create another invite' : 'Get private Telegram invite'} <ArrowUpRight size={15}/>
       </button>
       {inviteUrl && <div className="telegram-invite-result"><p>Your private invite link is ready. This link expires in 15 minutes.</p><a className="button button-dark telegram-invite-button" href={inviteUrl} target="_blank" rel="noreferrer">Open Telegram group request <ArrowUpRight size={15}/></a></div>}
-    </>}
+    </div>}
     {error && <p className="form-error">{error}</p>}
   </div>;
 }

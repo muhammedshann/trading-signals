@@ -69,3 +69,36 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   return savePlan(request, 'PUT');
 }
+
+export async function DELETE(request: Request) {
+  const { error: accessError } = await requireAdmin(request);
+  if (accessError) return accessError;
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id')?.trim();
+    if (!id) {
+      const body = await request.json().catch(() => ({})) as { id?: string };
+      id = body.id?.trim();
+    }
+    if (!id) return NextResponse.json({ error: 'Plan ID is required.' }, { status: 400 });
+
+    const admin = createAdminClient();
+    const { data: plan } = await admin.from('plans').select('id, name').eq('id', id).maybeSingle();
+    if (!plan) return NextResponse.json({ error: 'Plan not found.' }, { status: 404 });
+
+    const { error } = await admin.from('plans').delete().eq('id', id);
+    if (error) {
+      if (error.code === '23503') {
+        return NextResponse.json({
+          error: `Cannot delete "${plan.name}" because it is linked to existing subscriptions or payment history. You can save it as "Draft" instead to hide it from members.`
+        }, { status: 409 });
+      }
+      throw error;
+    }
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Admin plan delete failed:', error);
+    return NextResponse.json({ error: 'Could not delete this plan.' }, { status: 500 });
+  }
+}
+
