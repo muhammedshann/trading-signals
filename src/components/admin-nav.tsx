@@ -34,6 +34,7 @@ export function AdminNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={`admin-nav-item ${isActive ? 'active' : ''}`}
             >
               <Icon size={16} />

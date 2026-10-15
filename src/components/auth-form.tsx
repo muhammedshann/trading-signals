@@ -56,11 +56,13 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, purpose, fullName: name }),
       });
-      const result = await response.json() as { error?: string };
+      const result = await response.json() as { error?: string; devNotice?: boolean };
       if (!response.ok) throw new Error(result.error || 'Could not send the code. Please try again.');
       setStep(resetting ? 'reset-otp' : 'otp');
       setMessage(resetting
         ? `If an account exists for ${email}, a password reset code has been sent.`
+        : result.devNotice
+        ? `[Dev Notice] Google token expired. Your OTP code was printed in your server terminal console!`
         : `We sent a code to ${email}. Enter it here, or open the verification link in your email.`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not send the code. Please try again.');

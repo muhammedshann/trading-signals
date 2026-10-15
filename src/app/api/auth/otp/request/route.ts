@@ -54,11 +54,30 @@ export async function POST(request: Request) {
     url.searchParams.set('email', email);
     url.searchParams.set('purpose', purpose);
     url.searchParams.set('token', linkToken);
-    await sendOtpEmail({ to: email, code, purpose, verificationUrl: purpose === 'reset' ? null : url.toString() });
-    return NextResponse.json({ ok: true });
+
+    try {
+      await sendOtpEmail({ to: email, code, purpose, verificationUrl: purpose === 'reset' ? null : url.toString() });
+      return NextResponse.json({ ok: true });
+    } catch (emailError) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('\n======================================================');
+        console.warn('[DEV MODE OTP NOTICE]');
+        console.warn(`Email sending failed: ${emailError instanceof Error ? emailError.message : emailError}`);
+        console.warn(`Google refresh token is expired or revoked.`);
+        console.warn(`Local development fallback: Use this OTP code to sign in:`);
+        console.warn(`>>> OTP CODE: ${code} <<<`);
+        if (purpose !== 'reset') {
+          console.warn(`>>> DIRECT LOGIN LINK: ${url.toString()} <<<`);
+        }
+        console.warn('======================================================\n');
+        return NextResponse.json({ ok: true, devNotice: true });
+      }
+      throw emailError;
+    }
   } catch (error) {
     console.error('OTP request failed:', error);
     const message = error instanceof Error ? error.message : 'Could not send the email code.';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

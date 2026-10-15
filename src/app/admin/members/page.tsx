@@ -27,6 +27,9 @@ function Pager({ current, total }: { current: number; total: number }) {
   );
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminMembersPage({
   searchParams,
 }: {
@@ -40,29 +43,34 @@ export default async function AdminMembersPage({
   const from = (currentPage - 1) * PAGE_SIZE;
   const to = currentPage * PAGE_SIZE - 1;
 
-  const [{ data: users, count: totalCount }, { count: suspendedCount }, { count: activeSubsCount }] =
-    await Promise.all([
-      adminDb
-        .from('profiles')
-        .select('id,email,full_name,created_at,role,is_suspended', { count: 'exact' })
-        .is('removed_at', null)
-        .order('created_at', { ascending: false })
-        .range(from, to),
-      adminDb
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_suspended', true)
-        .is('removed_at', null),
-      adminDb
-        .from('subscriptions')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'active')
-        .gt('expires_at', new Date().toISOString()),
-    ]);
+  const [
+    { data: users, count: totalCount },
+    { count: suspendedCount },
+    { count: activeSubsCount },
+    { data: plans },
+  ] = await Promise.all([
+    adminDb
+      .from('profiles')
+      .select('id,email,full_name,created_at,role,is_suspended', { count: 'exact' })
+      .is('removed_at', null)
+      .order('created_at', { ascending: false })
+      .range(from, to),
+    adminDb
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_suspended', true)
+      .is('removed_at', null),
+    adminDb
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active')
+      .gt('expires_at', new Date().toISOString()),
+    adminDb.from('plans').select('id,name'),
+  ]);
 
   const userIds = (users || []).map(u => u.id);
 
-  const [subscriptionsRes, agreementsRes, plansRes] = await Promise.all([
+  const [subscriptionsRes, agreementsRes] = await Promise.all([
     userIds.length > 0
       ? adminDb
           .from('subscriptions')
@@ -77,12 +85,12 @@ export default async function AdminMembersPage({
           .in('user_id', userIds)
           .order('accepted_at', { ascending: false })
       : { data: [] },
-    adminDb.from('plans').select('id,name'),
   ]);
 
-  const planMap = new Map((plansRes.data || []).map(p => [p.id, p.name]));
+  const planMap = new Map((plans || []).map(p => [p.id, p.name]));
   const accessMap: Record<string, MemberAccess> = {};
   const consentMap: Record<string, AgreementConsent | null> = {};
+
 
   const now = Date.now();
 

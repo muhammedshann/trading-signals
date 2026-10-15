@@ -71,6 +71,9 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function AdminPaymentsPage({
   searchParams,
 }: {
@@ -89,6 +92,7 @@ export default async function AdminPaymentsPage({
     { count: paidCount },
     { count: failedCount },
     { data: plans },
+    { data: paidAmounts },
   ] = await Promise.all([
     adminDb
       .from('payments')
@@ -99,6 +103,7 @@ export default async function AdminPaymentsPage({
     adminDb.from('payments').select('id', { count: 'exact', head: true }).eq('status', 'paid'),
     adminDb.from('payments').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
     adminDb.from('plans').select('id,name'),
+    adminDb.from('payments').select('amount_inr').eq('status', 'paid'),
   ]);
 
   const planMap = new Map((plans || []).map(p => [p.id, p.name]));
@@ -118,20 +123,13 @@ export default async function AdminPaymentsPage({
     });
   }
 
-  let grossRevenue = 0;
-  let revenueOffset = 0;
-  while (true) {
-    const { data } = await adminDb
-      .from('payments')
-      .select('amount_inr')
-      .eq('status', 'paid')
-      .range(revenueOffset, revenueOffset + 999);
-    grossRevenue += (data || []).reduce((sum, payment) => sum + Number(payment.amount_inr || 0), 0);
-    if (!data || data.length < 1000) break;
-    revenueOffset += 1000;
-  }
+  const grossRevenue = (paidAmounts || []).reduce(
+    (sum, p) => sum + Number(p.amount_inr || 0),
+    0
+  );
 
   const avgOrderValue = paidCount && paidCount > 0 ? Math.round(grossRevenue / paidCount) : 0;
+
 
   return (
     <main className="dashboard wrap admin-dashboard">
