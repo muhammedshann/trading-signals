@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { kickTelegramMember } from '@/lib/telegram/bot-api';
+import { processSubscriptionExpiryEmails } from '@/lib/subscriptions/expiry-cron';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -48,9 +49,17 @@ export async function GET(request: Request) {
         console.error('Could not remove expired Telegram member:', member.telegram_user_id, error);
       }
     }
-    return NextResponse.json({ checked: members.length, removed, failed });
+
+    // Process 1-day before warning and 1-day after expiry emails
+    const emailResults = await processSubscriptionExpiryEmails(admin);
+
+    return NextResponse.json({
+      telegram: { checked: members.length, removed, failed },
+      expiryEmails: emailResults,
+    });
   } catch (error) {
     console.error('Telegram expiry job failed:', error);
     return NextResponse.json({ error: 'Expiry check failed.' }, { status: 500 });
   }
 }
+

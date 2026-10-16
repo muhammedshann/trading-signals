@@ -88,6 +88,13 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+import {
+  POLICY_DOCUMENTS,
+  AGREEMENT_TEXT,
+  RISK_DISCLOSURE_TEXT,
+  type PolicyDoc,
+} from '@/lib/legal/policy-documents';
+
 export function AdminMembersView({
   users,
   accessMap,
@@ -98,8 +105,10 @@ export function AdminMembersView({
   consentMap: Record<string, AgreementConsent | null>;
 }) {
   const [activeConsentUser, setActiveConsentUser] = useState<UserRecord | null>(null);
+  const [activePolicyTab, setActivePolicyTab] = useState<'checkout' | 'terms' | 'risk' | 'privacy' | 'refund'>('checkout');
 
   const selectedConsent = activeConsentUser ? consentMap[activeConsentUser.id] : null;
+  const currentDoc: PolicyDoc = POLICY_DOCUMENTS[activePolicyTab];
 
   return (
     <>
@@ -152,7 +161,10 @@ export function AdminMembersView({
                     <button
                       type="button"
                       className={`table-action ${consent ? 'table-action-consent-verified' : ''}`}
-                      onClick={() => setActiveConsentUser(u)}
+                      onClick={() => {
+                        setActiveConsentUser(u);
+                        setActivePolicyTab('checkout');
+                      }}
                     >
                       {consent ? (
                         <>
@@ -196,11 +208,16 @@ export function AdminMembersView({
             if (event.target === event.currentTarget) setActiveConsentUser(null);
           }}
         >
-          <section className="confirm-modal admin-consent-modal" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+          <section
+            className="confirm-modal admin-consent-modal admin-consent-modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="consent-title"
+          >
             <div className="admin-consent-modal-head">
               <div>
-                <span className="eyebrow">LEGAL & PRIVACY AUDIT</span>
-                <h2 id="consent-title">Consent Record</h2>
+                <span className="eyebrow">LEGAL &amp; PRIVACY AUDIT</span>
+                <h2 id="consent-title">Consent Record &amp; Agreement Details</h2>
               </div>
               <button
                 type="button"
@@ -218,66 +235,226 @@ export function AdminMembersView({
                 {activeConsentUser.full_name && <span>{activeConsentUser.full_name}</span>}
               </div>
               <span className={`status-pill ${selectedConsent ? 'status-active' : 'status-muted'}`}>
-                {selectedConsent ? 'Consent Verified' : 'No Consent On File'}
+                {selectedConsent ? 'Consent Verified & Logged' : 'No Consent On File'}
               </span>
             </div>
 
             {selectedConsent ? (
-              <div className="admin-consent-body">
-                <div className="admin-consent-grid">
-                  <div className="admin-consent-item">
-                    <span className="admin-consent-label">
-                      <Calendar size={13} /> Accepted Timestamp
-                    </span>
-                    <b>{formatDateTime(selectedConsent.accepted_at)}</b>
+              <div className="admin-consent-split-layout">
+                {/* Left Panel: Audit Metadata */}
+                <div className="admin-consent-panel-left">
+                  <div className="admin-consent-grid">
+                    <div className="admin-consent-item">
+                      <span className="admin-consent-label">
+                        <Calendar size={13} /> Accepted Timestamp
+                      </span>
+                      <b>{formatDateTime(selectedConsent.accepted_at)}</b>
+                    </div>
+                    <div className="admin-consent-item">
+                      <span className="admin-consent-label">
+                        <Globe size={13} /> Recorded IP Address
+                      </span>
+                      <code>{selectedConsent.ip_address || '127.0.0.1 (Local / Proxy)'}</code>
+                    </div>
+                    <div className="admin-consent-item admin-consent-col-span">
+                      <span className="admin-consent-label">
+                        <Smartphone size={13} /> Device &amp; Browser
+                      </span>
+                      <b>
+                        {parseDevice(selectedConsent.user_agent).icon}{' '}
+                        {parseDevice(selectedConsent.user_agent).label}
+                      </b>
+                      <small className="admin-consent-raw-ua">{selectedConsent.user_agent || 'Not captured'}</small>
+                    </div>
                   </div>
-                  <div className="admin-consent-item">
-                    <span className="admin-consent-label">
-                      <Globe size={13} /> Recorded IP Address
-                    </span>
-                    <code>{selectedConsent.ip_address || '127.0.0.1 (Local / Proxy)'}</code>
+
+                  <div className="admin-consent-policies">
+                    <div className="admin-consent-policies-head">
+                      <span className="admin-consent-label">
+                        <FileText size={13} /> Agreed Policies (Click to view)
+                      </span>
+                    </div>
+                    <div className="admin-consent-policies-list">
+                      <button
+                        type="button"
+                        className={`admin-policy-select-btn ${activePolicyTab === 'checkout' ? 'active' : ''}`}
+                        onClick={() => setActivePolicyTab('checkout')}
+                      >
+                        <span>Pre-Payment Consent</span>
+                        <code>Binding Clause</code>
+                      </button>
+                      <button
+                        type="button"
+                        className={`admin-policy-select-btn ${activePolicyTab === 'terms' ? 'active' : ''}`}
+                        onClick={() => setActivePolicyTab('terms')}
+                      >
+                        <span>Terms &amp; Conditions</span>
+                        <code>Version {selectedConsent.terms_version}</code>
+                      </button>
+                      <button
+                        type="button"
+                        className={`admin-policy-select-btn ${activePolicyTab === 'risk' ? 'active' : ''}`}
+                        onClick={() => setActivePolicyTab('risk')}
+                      >
+                        <span>Risk Disclosure Statement</span>
+                        <code>Version {selectedConsent.risk_disclosure_version}</code>
+                      </button>
+                      <button
+                        type="button"
+                        className={`admin-policy-select-btn ${activePolicyTab === 'privacy' ? 'active' : ''}`}
+                        onClick={() => setActivePolicyTab('privacy')}
+                      >
+                        <span>Privacy Policy</span>
+                        <code>Version {selectedConsent.privacy_policy_version}</code>
+                      </button>
+                      <button
+                        type="button"
+                        className={`admin-policy-select-btn ${activePolicyTab === 'refund' ? 'active' : ''}`}
+                        onClick={() => setActivePolicyTab('refund')}
+                      >
+                        <span>Refund &amp; Cancellation</span>
+                        <code>Version {selectedConsent.refund_policy_version}</code>
+                      </button>
+                    </div>
                   </div>
-                  <div className="admin-consent-item admin-consent-col-span">
+
+                  <div className="admin-consent-hash">
                     <span className="admin-consent-label">
-                      <Smartphone size={13} /> Device &amp; Browser
+                      <KeyRound size={13} /> Cryptographic Agreement SHA-256 Hash
                     </span>
-                    <b>
-                      {parseDevice(selectedConsent.user_agent).icon}{' '}
-                      {parseDevice(selectedConsent.user_agent).label}
-                    </b>
-                    <small className="admin-consent-raw-ua">{selectedConsent.user_agent || 'Not captured'}</small>
+                    <code>{selectedConsent.agreement_hash}</code>
                   </div>
                 </div>
 
-                <div className="admin-consent-policies">
-                  <span className="admin-consent-label">
-                    <FileText size={13} /> Consented Agreements &amp; Policy Versions
-                  </span>
-                  <div className="admin-consent-policies-list">
-                    <div>
-                      <span>Terms &amp; Conditions</span>
-                      <code>Version {selectedConsent.terms_version}</code>
+                {/* Right Panel: Consented Agreement Document Viewer */}
+                <div className="admin-consent-panel-right">
+                  <div className="admin-doc-viewer-nav" role="tablist" aria-label="Agreement Documents">
+                    <button
+                      type="button"
+                      className={`admin-doc-nav-btn ${activePolicyTab === 'checkout' ? 'active' : ''}`}
+                      onClick={() => setActivePolicyTab('checkout')}
+                    >
+                      Consent
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-doc-nav-btn ${activePolicyTab === 'terms' ? 'active' : ''}`}
+                      onClick={() => setActivePolicyTab('terms')}
+                    >
+                      Terms
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-doc-nav-btn ${activePolicyTab === 'risk' ? 'active' : ''}`}
+                      onClick={() => setActivePolicyTab('risk')}
+                    >
+                      Risk
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-doc-nav-btn ${activePolicyTab === 'privacy' ? 'active' : ''}`}
+                      onClick={() => setActivePolicyTab('privacy')}
+                    >
+                      Privacy
+                    </button>
+                    <button
+                      type="button"
+                      className={`admin-doc-nav-btn ${activePolicyTab === 'refund' ? 'active' : ''}`}
+                      onClick={() => setActivePolicyTab('refund')}
+                    >
+                      Refund
+                    </button>
+                  </div>
+
+                  <div className="admin-doc-viewer-content">
+                    <div className="admin-doc-header">
+                      <div>
+                        <h3>{currentDoc.title}</h3>
+                        <span className="admin-doc-meta">
+                          Effective Date: {currentDoc.updated}
+                          {currentDoc.versionKey && selectedConsent && (
+                            <> · <strong>{selectedConsent[`${currentDoc.versionKey}_version` as keyof AgreementConsent] as string || 'v1.0'}</strong></>
+                          )}
+                        </span>
+                      </div>
+                      {currentDoc.publicUrl && (
+                        <Link
+                          href={currentDoc.publicUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="admin-doc-ext-link"
+                          title="Open live policy page in new tab"
+                        >
+                          <ExternalLink size={12} /> Live Page
+                        </Link>
+                      )}
                     </div>
-                    <div>
-                      <span>Risk Disclosure Statement</span>
-                      <code>Version {selectedConsent.risk_disclosure_version}</code>
-                    </div>
-                    <div>
-                      <span>Privacy Policy</span>
-                      <code>Version {selectedConsent.privacy_policy_version}</code>
-                    </div>
-                    <div>
-                      <span>Refund &amp; Cancellation</span>
-                      <code>Version {selectedConsent.refund_policy_version}</code>
+
+                    <div className="admin-doc-body">
+                      {activePolicyTab === 'checkout' ? (
+                        <div className="admin-checkout-agreement-view">
+                          <div className="admin-agreement-block">
+                            <span className="admin-agreement-block-tag text-emerald">
+                              <ShieldCheck size={13} /> User Checked &amp; Agreed Checkbox
+                            </span>
+                            <blockquote className="admin-agreement-quote">
+                              &ldquo;{AGREEMENT_TEXT}&rdquo;
+                            </blockquote>
+                          </div>
+
+                          <div className="admin-agreement-block admin-agreement-risk-block">
+                            <span className="admin-agreement-block-tag text-warning">
+                              <ShieldAlert size={13} /> Mandatory Risk Disclosure Presented at Checkout
+                            </span>
+                            <p className="admin-risk-copy">
+                              {RISK_DISCLOSURE_TEXT}
+                            </p>
+                          </div>
+
+                          <div className="admin-agreement-versions-box">
+                            <span className="admin-consent-label">
+                              <FileText size={13} /> Bound Version Register
+                            </span>
+                            <div className="admin-bound-versions-grid">
+                              <div>
+                                <span>Terms of Service</span>
+                                <b>{selectedConsent.terms_version}</b>
+                              </div>
+                              <div>
+                                <span>Risk Statement</span>
+                                <b>{selectedConsent.risk_disclosure_version}</b>
+                              </div>
+                              <div>
+                                <span>Privacy Policy</span>
+                                <b>{selectedConsent.privacy_policy_version}</b>
+                              </div>
+                              <div>
+                                <span>Refund Policy</span>
+                                <b>{selectedConsent.refund_policy_version}</b>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="admin-policy-sections-view">
+                          <p className="admin-policy-intro">{currentDoc.intro}</p>
+                          <div className="admin-policy-sections-list">
+                            {currentDoc.sections?.map(([secHeading, secText], idx) => (
+                              <div key={secHeading} className="admin-policy-section-item">
+                                <span className="admin-policy-num">
+                                  {String(idx + 1).padStart(2, '0')}
+                                </span>
+                                <div>
+                                  <h4>{secHeading}</h4>
+                                  <p>{secText}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-
-                <div className="admin-consent-hash">
-                  <span className="admin-consent-label">
-                    <KeyRound size={13} /> Cryptographic Agreement SHA-256 Hash
-                  </span>
-                  <code>{selectedConsent.agreement_hash}</code>
                 </div>
               </div>
             ) : (
@@ -305,3 +482,4 @@ export function AdminMembersView({
     </>
   );
 }
+

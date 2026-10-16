@@ -199,7 +199,7 @@ export function AdminAnalyticsChart({
 
         <div className="admin-chart-filters">
           {/* Metric Selector Tabs */}
-          <div className="admin-filter-group" role="tablist" aria-label="Select Metric">
+          <div className="admin-filter-group admin-metric-filters" role="tablist" aria-label="Select Metric">
             <button
               type="button"
               className={`admin-filter-btn ${metric === 'profit' ? 'active' : ''}`}
@@ -207,8 +207,11 @@ export function AdminAnalyticsChart({
                 setMetric('profit');
                 setHoveredIdx(null);
               }}
+              title="Revenue & Profit"
             >
-              <Banknote size={14} /> Revenue &amp; Profit
+              <Banknote size={14} className="filter-btn-icon" />
+              <span className="filter-label-full">Revenue &amp; Profit</span>
+              <span className="filter-label-short">Revenue</span>
             </button>
             <button
               type="button"
@@ -217,8 +220,11 @@ export function AdminAnalyticsChart({
                 setMetric('members');
                 setHoveredIdx(null);
               }}
+              title="Members & Subscriptions"
             >
-              <UsersRound size={14} /> Members &amp; Subs
+              <UsersRound size={14} className="filter-btn-icon" />
+              <span className="filter-label-full">Members &amp; Subs</span>
+              <span className="filter-label-short">Members</span>
             </button>
             <button
               type="button"
@@ -227,13 +233,16 @@ export function AdminAnalyticsChart({
                 setMetric('telegram');
                 setHoveredIdx(null);
               }}
+              title="Telegram Joins / Kicks"
             >
-              <Bot size={14} /> Telegram Joins / Kicks
+              <Bot size={14} className="filter-btn-icon" />
+              <span className="filter-label-full">Telegram Joins / Kicks</span>
+              <span className="filter-label-short">Telegram</span>
             </button>
           </div>
 
           {/* Time Range Selector */}
-          <div className="admin-filter-group" role="group" aria-label="Time Range">
+          <div className="admin-filter-group admin-range-filters" role="group" aria-label="Time Range">
             {(['7d', '30d', '90d', 'all'] as RangeType[]).map(r => (
               <button
                 key={r}
@@ -250,6 +259,7 @@ export function AdminAnalyticsChart({
           </div>
         </div>
       </div>
+
 
       {/* KPI Highlight Strip for Selected Filter */}
       <div className="admin-chart-kpi-bar">

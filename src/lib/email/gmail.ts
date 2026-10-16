@@ -151,3 +151,80 @@ export async function sendMembershipReceiptEmail(receipt: MembershipReceipt) {
   const htmlBody = `<!doctype html><html><body style="margin:0;background:#f3f5f3;font-family:Arial,Helvetica,sans-serif;color:#1c2925"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f3;padding:28px 12px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e2e8e3;border-radius:12px"><tr><td style="padding:28px"><div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#285b50">SIGNALROOM</div><h1 style="margin:22px 0 6px;font-size:23px">Payment confirmed</h1><p style="margin:0 0 22px;color:#647168;font-size:14px;line-height:1.6">Your membership is active. Keep this email for your records.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #e8ece9;border-radius:8px;font-size:13px">${rowsHtml}</table><h2 style="font-size:14px;margin:24px 0 10px">Your policies</h2><p style="font-size:12px;line-height:2">${linksHtml}</p><p style="border-top:1px solid #e8ece9;margin:20px 0 0;padding-top:16px;color:#758078;font-size:12px;line-height:1.7">Trading involves risk. This membership does not guarantee returns. You are responsible for your own trading and investment decisions.</p></td></tr></table></td></tr></table></body></html>`;
   await dispatchEmail(receipt.to, 'Signalroom membership payment confirmed', textBody, htmlBody);
 }
+
+export type ExpiryNoticeEmailParams = {
+  to: string;
+  fullName: string | null;
+  planName: string;
+  expiresAt: string;
+  siteUrl: string;
+};
+
+export async function sendSubscriptionExpiryWarningEmail(params: ExpiryNoticeEmailParams) {
+  const dateFormatted = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date(params.expiresAt));
+
+  const renewUrl = `${params.siteUrl}/plans`;
+  const recipientName = params.fullName?.trim() || 'VIP Member';
+
+  const textBody = [
+    'SIGNALROOM · VIP ACCESS EXPIRING SOON',
+    '',
+    `Hello ${recipientName},`,
+    '',
+    `This is a courtesy reminder that your Signalroom ${params.planName} access is scheduled to expire in 24 hours on:`,
+    `${dateFormatted} (IST)`,
+    '',
+    'Renew now to maintain uninterrupted access to:',
+    '• Real-time high-conviction trading signals',
+    '• Daily market analysis and key levels',
+    '• Private Telegram VIP community discussions',
+    '',
+    `Renew your access here: ${renewUrl}`,
+    '',
+    'If you have already renewed or upgraded, you can safely disregard this message.',
+    '',
+    'Signalroom · Premium Market Intelligence',
+  ].join('\n');
+
+  const htmlBody = `<!doctype html><html><body style="margin:0;background:#f3f5f3;font-family:Arial,Helvetica,sans-serif;color:#1c2925"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f3;padding:36px 14px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;background:#fff;border:1px solid #e2e8e3;border-radius:14px;overflow:hidden"><tr><td style="background:#173c35;padding:24px 32px"><div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#8bff28">SIGNALROOM VIP</div><h1 style="margin:10px 0 0;font-size:22px;color:#ffffff;line-height:1.3">Your membership expires tomorrow</h1></td></tr><tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#333">Hello <strong>${escapeHtml(recipientName)}</strong>,</p><p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:#555">This is a reminder that your <strong>${escapeHtml(params.planName)}</strong> access is scheduled to expire in <strong>24 hours</strong> on:</p><div style="margin:18px 0;padding:16px 20px;background:#fff8ee;border:1px solid #ffe1b5;border-radius:10px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#b26a00;letter-spacing:1px">Expiry Date &amp; Time</div><div style="font-size:16px;font-weight:700;color:#1c2925;margin-top:4px">${escapeHtml(dateFormatted)}</div></div><p style="margin:20px 0 14px;font-size:14px;line-height:1.6;color:#555">To ensure you do not lose access to real-time trading signals and the private Telegram group, renew your membership before it expires:</p><p style="margin:26px 0 24px;text-align:center"><a href="${escapeHtml(renewUrl)}" style="display:inline-block;background:#173c35;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;font-size:14px">Renew VIP Membership</a></p><p style="margin:0;font-size:12px;line-height:1.6;color:#888;border-top:1px solid #eee;padding-top:18px">If you have already renewed, you can safely ignore this email.</p></td></tr></table></td></tr></table></body></html>`;
+
+  await dispatchEmail(params.to, 'Warning: Your Signalroom VIP access expires tomorrow', textBody, htmlBody);
+}
+
+export async function sendSubscriptionExpiredEmail(params: ExpiryNoticeEmailParams) {
+  const dateFormatted = new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date(params.expiresAt));
+
+  const renewUrl = `${params.siteUrl}/plans`;
+  const recipientName = params.fullName?.trim() || 'VIP Member';
+
+  const textBody = [
+    'SIGNALROOM · VIP ACCESS EXPIRED',
+    '',
+    `Hello ${recipientName},`,
+    '',
+    `Your Signalroom ${params.planName} access expired yesterday on:`,
+    `${dateFormatted} (IST)`,
+    '',
+    'Your access to the private Telegram community has now been paused.',
+    '',
+    'You can reactivate your VIP access at any time to rejoin the community and resume receiving trading signals immediately:',
+    `${renewUrl}`,
+    '',
+    'Upon renewal, you can instantly reconnect your Telegram with 1-click in your dashboard.',
+    '',
+    'Signalroom · Premium Market Intelligence',
+  ].join('\n');
+
+  const htmlBody = `<!doctype html><html><body style="margin:0;background:#f3f5f3;font-family:Arial,Helvetica,sans-serif;color:#1c2925"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f3;padding:36px 14px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:540px;background:#fff;border:1px solid #e2e8e3;border-radius:14px;overflow:hidden"><tr><td style="background:#262626;padding:24px 32px"><div style="font-size:12px;font-weight:700;letter-spacing:2px;color:#ff9b91">SIGNALROOM NOTICE</div><h1 style="margin:10px 0 0;font-size:22px;color:#ffffff;line-height:1.3">Your VIP access has expired</h1></td></tr><tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#333">Hello <strong>${escapeHtml(recipientName)}</strong>,</p><p style="margin:0 0 20px;font-size:14px;line-height:1.65;color:#555">Your <strong>${escapeHtml(params.planName)}</strong> access expired on:</p><div style="margin:18px 0;padding:16px 20px;background:#fdf2f2;border:1px solid #f9d6d5;border-radius:10px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#d32f2f;letter-spacing:1px">Access Concluded</div><div style="font-size:16px;font-weight:700;color:#1c2925;margin-top:4px">${escapeHtml(dateFormatted)}</div></div><p style="margin:20px 0 14px;font-size:14px;line-height:1.6;color:#555">Your membership in the private Telegram signals group has been paused. You can reactivate your subscription at any time to resume uninterrupted market signals:</p><p style="margin:26px 0 24px;text-align:center"><a href="${escapeHtml(renewUrl)}" style="display:inline-block;background:#173c35;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:8px;font-size:14px">Reactivate VIP Membership</a></p><p style="margin:0;font-size:12px;line-height:1.6;color:#888;border-top:1px solid #eee;padding-top:18px">When you renew, your Telegram account can immediately reconnect with 1 click from your dashboard.</p></td></tr></table></td></tr></table></body></html>`;
+
+  await dispatchEmail(params.to, 'Your Signalroom VIP access has expired — Reactivate anytime', textBody, htmlBody);
+}
+
